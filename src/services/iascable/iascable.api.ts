@@ -19,6 +19,7 @@ export interface WritableBundle {
 export interface IasableResult<T extends CustomResourceDefinition> {
   billOfMaterial: T
   supportingFiles?: OutputFile[]
+  variableFiles?: OutputFile[]
 }
 
 export interface IascableBomResultBase extends IasableResult<BillOfMaterialModel> {

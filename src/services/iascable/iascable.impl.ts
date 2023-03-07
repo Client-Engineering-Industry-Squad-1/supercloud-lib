@@ -462,7 +462,7 @@ class IascableBomResultImpl implements IascableBomResult {
       {inSolution: this.inSolution})
 
     writeFiles(
-      options.flatten ? writer : writer.folder('terraform'),
+      options.flatten ? writer : writer.folder('files'),
       this.terraformComponent.files,
       options
     )
@@ -503,6 +503,7 @@ class IascableSolutionResultImpl implements IascableSolutionResult {
   billOfMaterial: SolutionModel;
   results: IascableBomResult[];
   supportingFiles: OutputFile[];
+  variableFiles: OutputFile[];
 
   _solution: Solution;
   _boms: BillOfMaterialModel[];
@@ -511,6 +512,7 @@ class IascableSolutionResultImpl implements IascableSolutionResult {
     this.results = params.results
     this.billOfMaterial = applyLayerVersions(params.billOfMaterial, this.results)
     this.supportingFiles = params.supportingFiles || []
+    this.variableFiles = params.supportingFiles || []
 
     this._solution = Solution.fromModel(params.billOfMaterial)
 
@@ -565,7 +567,7 @@ class IascableSolutionResultImpl implements IascableSolutionResult {
     const sensitiveVariables: BillOfMaterialVariable[] = this.billOfMaterial.spec.variables
       .filter(v => v.sensitive)
 
-    this.supportingFiles.push(...[
+    this.variableFiles.push(...[
       new TerraformTfvarsFile(terraformVariables, this.billOfMaterial.spec.variables, 'terraform.template.tfvars'),
       new TerraformTfvarsFile(sensitiveVariables, this.billOfMaterial.spec.variables, 'credentials.auto.template.tfvars'),
       new VariablesYamlFile({name: 'variables.template.yaml', variables: terraformVariables})
@@ -578,10 +580,11 @@ class IascableSolutionResultImpl implements IascableSolutionResult {
     writeFile(solutionWriter, this._solution.asFile(), options);
 
     this.results.forEach((result: IascableBomResult) => {
-      result.writeBundle(solutionWriter, options)
+      result.writeBundle(solutionWriter.folder('roles'), options)
     })
 
     writeFiles(solutionWriter, this.supportingFiles, options)
+    writeFiles(solutionWriter.folder('group_vars'), this.variableFiles, options)
 
     return solutionWriter
   }
