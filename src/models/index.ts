@@ -12,3 +12,4 @@ export * from './terragrunt.model';
 export * from './tile.model';
 export * from './variables.model';
 export * from './version-matcher';
+export * from './ansible.model';

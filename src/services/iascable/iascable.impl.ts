@@ -44,7 +44,8 @@ import {
   TerragruntLayer,
   Tile,
   UrlFile,
-  LocalFile
+  LocalFile,
+  AnsiblePlaybookFile
 } from '../../models'
 import { CatalogLoaderApi } from '../catalog-loader'
 import { ModuleSelectorApi } from '../module-selector'
@@ -567,6 +568,7 @@ class IascableSolutionResultImpl implements IascableSolutionResult {
     this.supportingFiles.push(new UrlFile({name: 'apply.sh', type: OutputFileType.executable, url: 'https://raw.githubusercontent.com/cloud-native-toolkit/automation-solutions/main/common-files/apply-all-terragrunt-variables.sh'}))
     this.supportingFiles.push(new UrlFile({name: 'destroy.sh', type: OutputFileType.executable, url: 'https://raw.githubusercontent.com/cloud-native-toolkit/automation-solutions/main/common-files/destroy-all-terragrunt.sh'}))
     this.supportingFiles.push(new LocalFile({name: 'shared_outputs_template.j2', type: OutputFileType.jinja, path:  join(__dirname, './templates/shared_outputs_template.j2')}))
+    this.supportingFiles.push(new AnsiblePlaybookFile(this.billOfMaterial))
     this.supportingFiles.push(new SolutionBomReadmeFile(this.billOfMaterial))
   }
 

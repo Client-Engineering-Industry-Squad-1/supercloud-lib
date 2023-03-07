@@ -64,6 +64,11 @@ export interface SolutionTemplateModel {
   stack: SolutionLayerModel[]
 }
 
+export interface AnsiblePlaybookTemplateModel {
+  solutionName: string
+  stack: SolutionLayerModel[]
+}
+
 export abstract class TemplatedFile implements OutputFile {
   _engine: Liquid;
   _templateFile: string;
