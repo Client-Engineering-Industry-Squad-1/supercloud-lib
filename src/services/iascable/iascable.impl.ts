@@ -469,6 +469,13 @@ class IascableBomResultImpl implements IascableBomResult {
     )
 
     writeFiles(
+      writer.folder('tasks'), [
+        new LocalFile({name: 'main.yml', type: OutputFileType.ansible, path:  join(__dirname, './templates/main.yml')})
+      ],
+      options
+    )
+
+    writeFiles(
       writer,
       [
         new BillOfMaterialFile(this.billOfMaterial),

@@ -7,7 +7,8 @@ export enum OutputFileType {
   documentation = 'documentation',
   dotGraph = 'dot-graph',
   executable = 'executable',
-  jinja = 'jinja'
+  jinja = 'jinja',
+  ansible = 'ansible'
 }
 
 export interface OutputFile {
