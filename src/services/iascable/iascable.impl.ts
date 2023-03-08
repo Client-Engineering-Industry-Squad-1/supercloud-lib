@@ -196,6 +196,7 @@ export class CatalogBuilder implements IascableApi {
         new UrlFile({name: 'apply.sh', url: 'https://raw.githubusercontent.com/cloud-native-toolkit/automation-solutions/main/common-files/apply-terragrunt-variables.sh', type: OutputFileType.executable}),
         new UrlFile({name: 'destroy.sh', url: 'https://raw.githubusercontent.com/cloud-native-toolkit/automation-solutions/main/common-files/destroy-terragrunt.sh', type: OutputFileType.executable}),
         new BomReadmeFile(billOfMaterial, terraformComponent.modules, terraformComponent),
+        new GitIgnoreFile()
       ]
     });
 
@@ -557,6 +558,7 @@ class IascableSolutionResultImpl implements IascableSolutionResult {
     this.supportingFiles.push(new UrlFile({name: 'apply.sh', type: OutputFileType.executable, url: 'https://raw.githubusercontent.com/cloud-native-toolkit/automation-solutions/main/common-files/apply-all-terragrunt-variables.sh'}))
     this.supportingFiles.push(new UrlFile({name: 'destroy.sh', type: OutputFileType.executable, url: 'https://raw.githubusercontent.com/cloud-native-toolkit/automation-solutions/main/common-files/destroy-all-terragrunt.sh'}))
     this.supportingFiles.push(new SolutionBomReadmeFile(this.billOfMaterial))
+    this.supportingFiles.push(new GitIgnoreFile())
   }
 
   addTerraformTfvars(): void {
