@@ -1,5 +1,5 @@
 ---
-- name: Playbook to deploy {{ solutionName }}
+- name: Playbook to deploy {{ name }}
   vars:
     terraform_template_vars: "{{ playbook_dir }}/group_vars/terraform.template.tfvars"
     credentials_template_vars: "{{ playbook_dir }}/group_vars/credentials.auto.template.tfvars"
@@ -12,9 +12,9 @@
         path: "{{ shared_outputs_vars }}"
         state: touch
       check_mode: no
-{%- for role in stack -%}
+{%- for module in modules -%}
   {%- if forloop.first %}
   roles:
   {%- endif %}
-    - role: {{ role.name }}
+    - role: {{ module.name }}
 {%- endfor %}

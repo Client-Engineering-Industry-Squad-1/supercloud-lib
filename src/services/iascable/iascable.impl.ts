@@ -45,7 +45,8 @@ import {
   Tile,
   UrlFile,
   LocalFile,
-  AnsiblePlaybookFile
+  AnsibleModulePlaybookFile,
+  AnsibleSolutionPlaybookFile
 } from '../../models'
 import { CatalogLoaderApi } from '../catalog-loader'
 import { ModuleSelectorApi } from '../module-selector'
@@ -456,25 +457,12 @@ class IascableBomResultImpl implements IascableBomResult {
   }
 
   writeBundle(baseWriter: BundleWriter, inOptions: { flatten?: boolean, basePath: string } = {flatten: false, basePath: '.'}): BundleWriter {
-    const writer: BundleWriter = baseWriter.folder(getBomPath(this.billOfMaterial))
+    let writer: BundleWriter = baseWriter.folder(getBomPath(this.billOfMaterial))
 
     const options = Object.assign(
       {},
       inOptions,
       {inSolution: this.inSolution})
-
-    writeFiles(
-      options.flatten ? writer : writer.folder('files'),
-      this.terraformComponent.files,
-      options
-    )
-
-    writeFiles(
-      writer.folder('tasks'), [
-        new LocalFile({name: 'main.yml', type: OutputFileType.ansible, path:  join(__dirname, './templates/main.yml')})
-      ],
-      options
-    )
 
     writeFiles(
       writer,
@@ -488,21 +476,42 @@ class IascableBomResultImpl implements IascableBomResult {
 
     writeFiles(writer, this.supportingFiles, options)
 
+    // If this is a single module solution
     if (!this.inSolution) {
       const terraformVariables: BillOfMaterialVariable[] = (this.billOfMaterial.spec.variables || [])
         .filter(v => !v.sensitive)
       const sensitiveVariables: BillOfMaterialVariable[] = (this.billOfMaterial.spec.variables || [])
         .filter(v => v.sensitive)
 
+      writeFiles(writer, [new AnsibleModulePlaybookFile(this.billOfMaterial)], options)
+
+      writeFiles(writer, [new LocalFile({name: 'shared_outputs_template.j2', type: OutputFileType.jinja, path:  join(__dirname, './templates/shared_outputs_template.j2')})], options)
+
       writeFiles(
-        writer, [
+        writer.folder('group_vars'), [
           new TerraformTfvarsFile(terraformVariables, this.billOfMaterial.spec.variables, 'terraform.template.tfvars'),
           new TerraformTfvarsFile(sensitiveVariables, this.billOfMaterial.spec.variables, 'credentials.auto.template.tfvars'),
           new VariablesYamlFile({name: 'variables.template.yaml', variables: this.terraformComponent.billOfMaterial?.spec.variables || []})
         ],
         options
       )
+
+      const basePath = join(getBomPath(this.billOfMaterial), 'roles')
+      writer = baseWriter.folder(join(basePath, this.billOfMaterial.metadata?.name || 'bill-of-material'))
     }
+
+    writeFiles(
+      options.flatten ? writer : writer.folder('files'),
+      this.terraformComponent.files,
+      options
+    )
+
+    writeFiles(
+      writer.folder('tasks'), [
+        new LocalFile({name: 'main.yml', type: OutputFileType.ansible, path:  join(__dirname, './templates/main.yml')})
+      ],
+      options
+    )
 
     return writer
   }
@@ -568,7 +577,7 @@ class IascableSolutionResultImpl implements IascableSolutionResult {
     this.supportingFiles.push(new UrlFile({name: 'apply.sh', type: OutputFileType.executable, url: 'https://raw.githubusercontent.com/cloud-native-toolkit/automation-solutions/main/common-files/apply-all-terragrunt-variables.sh'}))
     this.supportingFiles.push(new UrlFile({name: 'destroy.sh', type: OutputFileType.executable, url: 'https://raw.githubusercontent.com/cloud-native-toolkit/automation-solutions/main/common-files/destroy-all-terragrunt.sh'}))
     this.supportingFiles.push(new LocalFile({name: 'shared_outputs_template.j2', type: OutputFileType.jinja, path:  join(__dirname, './templates/shared_outputs_template.j2')}))
-    this.supportingFiles.push(new AnsiblePlaybookFile(this.billOfMaterial))
+    this.supportingFiles.push(new AnsibleSolutionPlaybookFile(this.billOfMaterial))
     this.supportingFiles.push(new SolutionBomReadmeFile(this.billOfMaterial))
   }
 
