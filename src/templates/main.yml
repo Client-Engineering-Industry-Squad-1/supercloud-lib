@@ -1,0 +1,33 @@
+---
+- name: Apply terraform
+  terraform:
+    force_init: true
+    project_path: "{{ role_path }}/files"
+    variables_files:
+    - "{{ terraform_template_vars }}"
+    - "{{ credentials_template_vars }}"
+    - "{{ shared_outputs_vars }}"
+  register: terraform_result
+- name: Create tmp file if doesn't exist
+  file:
+    path: "{{ role_path }}/tmp.testvars"
+    state: touch
+  check_mode: no
+- name: Write outputs to tmp file
+  template:
+    src: "{{ shared_outputs_template }}"
+    dest: "{{ role_path }}/tmp.testvars"
+    lstrip_blocks: true
+  check_mode: no
+- name: Append to shared outputs file
+  blockinfile:
+    create: true
+    path: "{{ shared_outputs_vars }}"
+    block: "{{ lookup('file', '{{ role_path }}/tmp.testvars') }}"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - {{ playbook_dir | basename }}"
+  check_mode: no
+- name: Delete tmp file
+  file:
+    path: "{{ role_path }}/tmp.testvars"
+    state: absent
+  check_mode: no

@@ -1,0 +1,20 @@
+---
+- name: Playbook to deploy {{ name }}
+  vars:
+    terraform_template_vars: "{{ playbook_dir }}/group_vars/terraform.template.tfvars"
+    credentials_template_vars: "{{ playbook_dir }}/group_vars/credentials.auto.template.tfvars"
+    shared_outputs_vars: "{{ playbook_dir }}/group_vars/shared_outputs.tfvars"
+    shared_outputs_template: "{{ playbook_dir }}/shared_outputs_template.j2" 
+  hosts: localhost
+  pre_tasks:
+    - name: Create shared outputs file if doesn't exist
+      file:
+        path: "{{ shared_outputs_vars }}"
+        state: touch
+      check_mode: no
+{%- for module in modules -%}
+  {%- if forloop.first %}
+  roles:
+  {%- endif %}
+    - role: {{ module.name }}
+{%- endfor %}

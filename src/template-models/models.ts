@@ -4,7 +4,8 @@ import {
   ModuleDependency,
   ModuleOutput,
   ProviderModel,
-  ModuleVariable, OutputFile, OutputFileType
+  ModuleVariable, OutputFile, OutputFileType,
+  BillOfMaterialOutput
 } from '../models';
 import {SolutionLayerModel, SolutionVariableModel} from '../models/solution.model';
 import {join} from 'path';
@@ -62,6 +63,16 @@ export interface SolutionTemplateModel {
   vpn?: boolean
   variables: SolutionVariableModel[]
   stack: SolutionLayerModel[]
+}
+
+export interface AnsibleModulePlaybookTemplateModel {
+  name: string
+  modules: (object | undefined)[]
+}
+
+export interface AnsibleSolutionPlaybookTemplateModel {
+  name: string
+  modules: SolutionLayerModel[]
 }
 
 export abstract class TemplatedFile implements OutputFile {

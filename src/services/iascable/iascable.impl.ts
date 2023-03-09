@@ -43,7 +43,10 @@ import {
   TerragruntBase,
   TerragruntLayer,
   Tile,
-  UrlFile
+  UrlFile,
+  LocalFile,
+  AnsibleModulePlaybookFile,
+  AnsibleSolutionPlaybookFile
 } from '../../models'
 import { CatalogLoaderApi } from '../catalog-loader'
 import { ModuleSelectorApi } from '../module-selector'
@@ -455,18 +458,12 @@ class IascableBomResultImpl implements IascableBomResult {
   }
 
   writeBundle(baseWriter: BundleWriter, inOptions: { flatten?: boolean, basePath: string } = {flatten: false, basePath: '.'}): BundleWriter {
-    const writer: BundleWriter = baseWriter.folder(getBomPath(this.billOfMaterial))
+    let writer: BundleWriter = baseWriter.folder(getBomPath(this.billOfMaterial))
 
     const options = Object.assign(
       {},
       inOptions,
       {inSolution: this.inSolution})
-
-    writeFiles(
-      options.flatten ? writer : writer.folder('terraform'),
-      this.terraformComponent.files,
-      options
-    )
 
     writeFiles(
       writer,
@@ -480,21 +477,42 @@ class IascableBomResultImpl implements IascableBomResult {
 
     writeFiles(writer, this.supportingFiles, options)
 
+    // If this is a single module solution
     if (!this.inSolution) {
       const terraformVariables: BillOfMaterialVariable[] = (this.billOfMaterial.spec.variables || [])
         .filter(v => !v.sensitive)
       const sensitiveVariables: BillOfMaterialVariable[] = (this.billOfMaterial.spec.variables || [])
         .filter(v => v.sensitive)
 
+      writeFiles(writer, [new AnsibleModulePlaybookFile(this.billOfMaterial)], options)
+
+      writeFiles(writer, [new LocalFile({name: 'shared_outputs_template.j2', type: OutputFileType.jinja, path:  join(__dirname, './templates/shared_outputs_template.j2')})], options)
+
       writeFiles(
-        writer, [
+        writer.folder('group_vars'), [
           new TerraformTfvarsFile(terraformVariables, this.billOfMaterial.spec.variables, 'terraform.template.tfvars'),
           new TerraformTfvarsFile(sensitiveVariables, this.billOfMaterial.spec.variables, 'credentials.auto.template.tfvars'),
           new VariablesYamlFile({name: 'variables.template.yaml', variables: this.terraformComponent.billOfMaterial?.spec.variables || []})
         ],
         options
       )
+
+      const basePath = join(getBomPath(this.billOfMaterial), 'roles')
+      writer = baseWriter.folder(join(basePath, this.billOfMaterial.metadata?.name || 'bill-of-material'))
     }
+
+    writeFiles(
+      options.flatten ? writer : writer.folder('files'),
+      this.terraformComponent.files,
+      options
+    )
+
+    writeFiles(
+      writer.folder('tasks'), [
+        new LocalFile({name: 'main.yml', type: OutputFileType.ansible, path:  join(__dirname, './templates/main.yml')})
+      ],
+      options
+    )
 
     return writer
   }
@@ -504,6 +522,7 @@ class IascableSolutionResultImpl implements IascableSolutionResult {
   billOfMaterial: SolutionModel;
   results: IascableBomResult[];
   supportingFiles: OutputFile[];
+  variableFiles: OutputFile[];
 
   _solution: Solution;
   _boms: BillOfMaterialModel[];
@@ -512,6 +531,7 @@ class IascableSolutionResultImpl implements IascableSolutionResult {
     this.results = params.results
     this.billOfMaterial = applyLayerVersions(params.billOfMaterial, this.results)
     this.supportingFiles = params.supportingFiles || []
+    this.variableFiles = params.supportingFiles || []
 
     this._solution = Solution.fromModel(params.billOfMaterial)
 
@@ -557,6 +577,8 @@ class IascableSolutionResultImpl implements IascableSolutionResult {
   addSupportFiles(): void {
     this.supportingFiles.push(new UrlFile({name: 'apply.sh', type: OutputFileType.executable, url: 'https://raw.githubusercontent.com/cloud-native-toolkit/automation-solutions/main/common-files/apply-all-terragrunt-variables.sh'}))
     this.supportingFiles.push(new UrlFile({name: 'destroy.sh', type: OutputFileType.executable, url: 'https://raw.githubusercontent.com/cloud-native-toolkit/automation-solutions/main/common-files/destroy-all-terragrunt.sh'}))
+    this.supportingFiles.push(new LocalFile({name: 'shared_outputs_template.j2', type: OutputFileType.jinja, path:  join(__dirname, './templates/shared_outputs_template.j2')}))
+    this.supportingFiles.push(new AnsibleSolutionPlaybookFile(this.billOfMaterial))
     this.supportingFiles.push(new SolutionBomReadmeFile(this.billOfMaterial))
     this.supportingFiles.push(new GitIgnoreFile())
   }
@@ -567,7 +589,7 @@ class IascableSolutionResultImpl implements IascableSolutionResult {
     const sensitiveVariables: BillOfMaterialVariable[] = this.billOfMaterial.spec.variables
       .filter(v => v.sensitive)
 
-    this.supportingFiles.push(...[
+    this.variableFiles.push(...[
       new TerraformTfvarsFile(terraformVariables, this.billOfMaterial.spec.variables, 'terraform.template.tfvars'),
       new TerraformTfvarsFile(sensitiveVariables, this.billOfMaterial.spec.variables, 'credentials.auto.template.tfvars'),
       new VariablesYamlFile({name: 'variables.template.yaml', variables: terraformVariables})
@@ -580,10 +602,11 @@ class IascableSolutionResultImpl implements IascableSolutionResult {
     writeFile(solutionWriter, this._solution.asFile(), options);
 
     this.results.forEach((result: IascableBomResult) => {
-      result.writeBundle(solutionWriter, options)
+      result.writeBundle(solutionWriter.folder('roles'), options)
     })
 
     writeFiles(solutionWriter, this.supportingFiles, options)
+    writeFiles(solutionWriter.folder('group_vars'), this.variableFiles, options)
 
     return solutionWriter
   }
@@ -650,7 +673,7 @@ const writeFilesWithWriter = (writer: BundleWriter, options?: {flatten?: boolean
 }
 
 const writeFile = (writer: BundleWriter, file: OutputFile, options: {flatten?: boolean, basePath: string} = {flatten: false, basePath: '.'}) => {
-  const fileOptions: {flatten?: boolean, path: string} = Object.assign({}, options, {path: join(options?.basePath, writer.getPath())})
+  const fileOptions: {flatten?: boolean, path: string} = Object.assign({}, options, {path: join(options?.basePath, writer.getPath() ? writer.getPath() : '.')})
 
   writer.file(
     file.name,

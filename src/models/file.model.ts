@@ -6,7 +6,9 @@ export enum OutputFileType {
   tileConfig = 'tile-config',
   documentation = 'documentation',
   dotGraph = 'dot-graph',
-  executable = 'executable'
+  executable = 'executable',
+  jinja = 'jinja',
+  ansible = 'ansible'
 }
 
 export interface OutputFile {
@@ -28,6 +30,24 @@ export class SimpleFile implements OutputFile {
 
   contents(): Promise<string | Buffer> {
     return Promise.resolve(this._contents)
+  }
+}
+
+export class LocalFile implements OutputFile {
+  name: string;
+  path: string;
+  type?: OutputFileType;
+  _alternative: () => Promise<string | Buffer>;
+
+  constructor({name, path, type, alternative = () => Promise.resolve('')}: {name: string, path: string, type?: OutputFileType, alternative?: () => Promise<string | Buffer>}) {
+    this.name = name;
+    this.path = path;
+    this.type = type;
+    this._alternative = alternative;
+  }
+
+  contents(): Promise<string | Buffer> {
+    return loadFile(this.path).catch(() => this._alternative())
   }
 }
 
