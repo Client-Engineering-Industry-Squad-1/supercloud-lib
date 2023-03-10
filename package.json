@@ -1,5 +1,5 @@
 {
-  "name": "@cloudnativetoolkit/iascable",
+  "name": "@supercloud/sclib",
   "version": "0.1.0",
   "description": "",
   "keywords": [],
@@ -10,10 +10,10 @@
     "build",
     "scripts"
   ],
-  "author": "Sean Sundberg <seansund@us.ibm.com>",
+  "author": "",
   "repository": {
     "type": "git",
-    "url": "https://github.com/cloud-native-toolkit/iascable.git"
+    "url": "https://github.com/Client-Engineering-Industry-Squad-1/supercloud-lib.git"
   },
   "license": "MIT",
   "bin": {
@@ -176,7 +176,7 @@
     "yargs": "^17.2.1",
     "z-schema": "^5.0.4"
   },
-  "homepage": "https://github.com/cloud-native-toolkit/iascable.git#readme",
+  "homepage": "https://github.com/Client-Engineering-Industry-Squad-1/supercloud-lib.git#readme",
   "overrides": {
     "semver-regex": "3.1.4"
   }
