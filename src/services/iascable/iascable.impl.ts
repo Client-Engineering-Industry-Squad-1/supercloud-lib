@@ -46,6 +46,7 @@ import {
   Tile,
   UrlFile,
   LocalFile,
+  AnsibleComponentModel,
   AnsibleModulePlaybookFile,
   AnsibleSolutionPlaybookFile
 } from '../../models'
@@ -207,7 +208,7 @@ export class CatalogBuilder implements IascableApi {
       supportingFiles: [
         new UrlFile({name: 'apply.sh', url: 'https://raw.githubusercontent.com/cloud-native-toolkit/automation-solutions/main/common-files/apply-terragrunt-variables.sh', type: OutputFileType.executable}),
         new UrlFile({name: 'destroy.sh', url: 'https://raw.githubusercontent.com/cloud-native-toolkit/automation-solutions/main/common-files/destroy-terragrunt.sh', type: OutputFileType.executable}),
-        new BomReadmeFile(billOfMaterial, terraformComponent.modules, terraformComponent),
+        new BomReadmeFile(billOfMaterial, component.modules, component),
       ]
     });
 
@@ -474,12 +475,6 @@ class IascableBomResultImpl implements IascableBomResult {
       {inSolution: this.inSolution})
 
     writeFiles(
-      options.flatten ? writer : writer.folder('terraform'),
-      this.terraformComponent.files,
-      options
-    )
-
-    writeFiles(
       writer,
       [
         new BillOfMaterialFile(this.billOfMaterial),
@@ -517,7 +512,7 @@ class IascableBomResultImpl implements IascableBomResult {
 
     writeFiles(
       options.flatten ? writer : writer.folder('files'),
-      this.terraformComponent.files,
+      this.component.files,
       options
     )
 

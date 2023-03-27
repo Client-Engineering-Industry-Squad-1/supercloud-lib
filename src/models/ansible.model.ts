@@ -1,6 +1,5 @@
-import {BillOfMaterialModel} from './bill-of-material.model';
 import {getAnnotation, getAnnotationList, getMetadataName} from './crd.model';
-import {OutputFile, OutputFileType} from './file.model';
+import {OutputFile} from './file.model';
 import { arrayOf, first, Optional } from '../util'
 import { LayerNeeds, LayerProvides } from './layer-dependencies.model'
 import { extractNeededCapabilitiesFromBom, extractProvidedCapabilitiesFromBom } from '../services'
