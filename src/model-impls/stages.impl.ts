@@ -25,6 +25,7 @@ import {
   AnsibleOutput,
   AnsibleProvider,
   AnsibleVariable,
+  AnsibleLayer,
   AnsibleVarsVariable
 } from '../models';
 import {
@@ -528,7 +529,7 @@ export class TerraformComponent implements TerraformComponentModel {
   }
 }
 
-export class AnsibleTerraformComponent implements AnsibleComponentModel {
+export class AnsibleComponent implements AnsibleComponentModel {
   stages: { [name: string]: Stage } = {};
   baseVariables: AnsibleVariable[] = [];
   baseOutputs: AnsibleOutput[] = [];
@@ -536,6 +537,7 @@ export class AnsibleTerraformComponent implements AnsibleComponentModel {
   modules?: SingleModuleVersion[];
   providers?: AnsibleProvider[];
   billOfMaterial?: BillOfMaterialModel;
+  ansible?: AnsibleLayer;
   terragrunt?: TerragruntLayer;
   ansibleVarsFile: AnsibleVarsFile;
   ansibleCredentialsVarsFile: AnsibleVarsFile;

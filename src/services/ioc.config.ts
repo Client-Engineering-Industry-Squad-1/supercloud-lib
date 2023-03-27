@@ -10,6 +10,7 @@ import moduleDocumentationConfig from './module-documentation/ioc.config';
 import moduleMetadataServiceConfig from './module-metadata-service/ioc.config';
 import moduleSelectorConfig from './module-selector/ioc.config';
 import terraformBuilderConfig from './terraform-builder/ioc.config';
+import ansibleBuilderConfig from './ansible-builder/ioc.config';
 import tileBuilderConfig from './tile-builder/ioc.config';
 
 const config: Array<ContainerConfiguration | ConstantConfiguration | NamespaceConfiguration> = []
@@ -23,6 +24,7 @@ config.push(...moduleDocumentationConfig)
 config.push(...moduleMetadataServiceConfig)
 config.push(...moduleSelectorConfig)
 config.push(...terraformBuilderConfig)
+config.push(...ansibleBuilderConfig)
 config.push(...tileBuilderConfig)
 
 export default config

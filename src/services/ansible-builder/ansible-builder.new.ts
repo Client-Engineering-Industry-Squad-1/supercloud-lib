@@ -21,7 +21,7 @@ import {
   ProviderModel,
   SingleModuleVersion,
   Stage,
-  TerraformComponentModel,
+  AnsibleComponentModel,
   TerraformProvider,
 } from '../../models';
 import {ModuleDependencyModuleNotFound, ModuleDependencyNotFound} from '../../errors';
@@ -39,7 +39,7 @@ import {
   ModuleRefVariable,
   PlaceholderVariable,
   StageImpl,
-  TerraformComponent,
+  AnsibleComponent,
   TerraformProviderImpl
 } from '../../model-impls';
 
@@ -82,8 +82,8 @@ const buildProviderId = (provider: {name: string, alias?: string}): string => {
 }
 
 export class AnsibleBuilderNew implements AnsibleBuilderApi {
-  async buildAnsibleComponent(modules: SingleModuleVersion[], catalog: CatalogV2Model, billOfMaterial?: BillOfMaterialModel): Promise<TerraformComponentModel> {
-
+  async buildAnsibleComponent(modules: SingleModuleVersion[], catalog: CatalogV2Model, billOfMaterial?: BillOfMaterialModel): Promise<AnsibleComponentModel> {
+   
     const terraform: TerraformResult = modules.reduce(
       (result: TerraformResult, module: SingleModuleVersion) => {
         const stageVariables: BaseVariable[] = this.moduleVariablesToStageVariables(module)
@@ -113,7 +113,7 @@ export class AnsibleBuilderNew implements AnsibleBuilderApi {
     const baseOutputs: IBaseOutput[] = terraform.baseOutputs
 
     const name: string | undefined = billOfMaterial?.metadata?.name;
-    return new TerraformComponent({
+    return new AnsibleComponent({
       stages: terraform.stages,
       baseVariables,
       baseOutputs,

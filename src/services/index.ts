@@ -7,6 +7,7 @@ export * from './module-documentation';
 export * from './module-metadata-service';
 export * from './module-selector';
 export * from './terraform-builder';
+export * from './ansible-builder';
 export * from './tile-builder';
 
 import {Container} from 'typescript-ioc';

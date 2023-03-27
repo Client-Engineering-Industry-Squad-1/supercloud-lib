@@ -190,9 +190,12 @@ export class CatalogBuilder implements IascableApi {
     const billOfMaterial: BillOfMaterialModel = applyAnnotationsAndVersionsToBom(bom, modules);
 
     let component: TerraformComponentModel | AnsibleComponentModel;
+
     // TODO: this is where to determine tf vs ans
-    if (modules[0].bomModule?.type === 'ansible') {
+    if (modules[0].type === 'ansible') {
+      console.log("here0")
       component = await this.ansibleBuilder.buildAnsibleComponent(modules, catalog, billOfMaterial);
+      console.log("here1")
     } else {
       component = await this.terraformBuilder.buildTerraformComponent(modules, catalog, billOfMaterial);
     }

@@ -179,6 +179,7 @@ export function isModuleRef(module: Module | ModuleRef | CustomResourceDefinitio
 
 export interface SingleModuleVersion extends BaseSingleModuleVersion {
   bomModule?: BillOfMaterialModule;
+  type?: string
 }
 
 export function isSingleModuleVersion(module: any): module is SingleModuleVersion {
