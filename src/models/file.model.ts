@@ -6,7 +6,8 @@ export enum OutputFileType {
   tileConfig = 'tile-config',
   documentation = 'documentation',
   dotGraph = 'dot-graph',
-  executable = 'executable'
+  executable = 'executable',
+  ansible = 'ansible'
 }
 
 export interface OutputFile {

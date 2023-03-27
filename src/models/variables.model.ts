@@ -60,6 +60,17 @@ export interface TerraformProvider {
   asString(): string;
 }
 
+export interface AnsibleProvider {
+  name: string;
+  alias?: string;
+  source?: string;
+  variables: BaseVariable[];
+  stages: {[name: string]: {name: string}}
+
+  asString(): string;
+}
+
+
 export function mergeVariables(variables: BillOfMaterialProviderVariable[], bomVariables: BillOfMaterialProviderVariable[] = []): BillOfMaterialProviderVariable[] {
   return variables.map(v => {
     return arrayOf(bomVariables)
@@ -75,6 +86,14 @@ export interface TerraformOutput extends IBaseOutput {
 }
 
 export interface TerraformVariable extends IBaseVariable {
+  asString(): string;
+}
+
+export interface AnsibleOutput extends IBaseOutput {
+  asString(): string;
+}
+
+export interface AnsibleVariable extends IBaseVariable {
   asString(): string;
 }
 

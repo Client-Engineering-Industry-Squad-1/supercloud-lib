@@ -4,7 +4,8 @@ import {
   OutputFile,
   TerraformComponentModel,
   Tile,
-  TileConfig
+  TileConfig,
+  AnsibleComponentModel
 } from '../../models';
 import {DotGraphFile} from '../../models/graph.model';
 import {SolutionModel} from '../../models/solution.model';
@@ -22,19 +23,19 @@ export interface IasableResult<T extends CustomResourceDefinition> {
 }
 
 export interface IascableBomResultBase extends IasableResult<BillOfMaterialModel> {
-  terraformComponent: TerraformComponentModel;
+  component: TerraformComponentModel | AnsibleComponentModel;
   tile?: Tile;
   graph?: DotGraphFile;
 }
 
 export interface IascableBomResult extends IascableBomResultBase, WritableBundle {
-  terraformComponent: TerraformComponentModel;
+  component: TerraformComponentModel | AnsibleComponentModel;
   tile?: Tile;
   graph?: DotGraphFile;
 }
 
 export const isIascableBomResult = (result: IasableResult<any>): result is IascableBomResult => {
-  return isDefined(result) && isDefined((result as IascableBomResultBase).terraformComponent)
+  return isDefined(result) && isDefined((result as IascableBomResultBase).component)
 }
 
 export interface IascableSolutionResultBase extends IasableResult<SolutionModel> {

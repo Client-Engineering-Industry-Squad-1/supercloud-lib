@@ -6,7 +6,7 @@ import {KubernetesResource, ResourceMetadata} from './crd.model';
 import {catalogApiV2Version} from './catalog.model';
 import {OutputFile, OutputFileType} from './file.model';
 import {BillOfMaterialVariable} from './bill-of-material.model';
-import {TerraformComponentModel} from './stages.model';
+import {TerraformComponentModel, AnsibleComponentModel} from './stages.model';
 import {isDefined} from '../util';
 
 const kindSolution = 'Solution'
@@ -59,6 +59,7 @@ export class Solution implements SolutionModel {
 
   readonly original: SolutionModel;
   _terraform: TerraformComponentModel[] = []
+  _ansible: AnsibleComponentModel[] = []
 
   readonly marker: string = 'solution'
 
@@ -99,6 +100,31 @@ export class Solution implements SolutionModel {
 
         return result
       })
+  }
+
+  set ansible(ansible: AnsibleComponentModel[]) {
+    this._ansible = ansible
+
+    // merge variables into solution
+    this.spec.variables = this._ansible
+      .map(getAnsibleVariables)
+      .reduce(
+        (result: BillOfMaterialVariable[], current: BillOfMaterialVariable[]) => unionBy(current, result, 'name'),
+        this.spec.variables || []
+      )
+      .sort((a, b): number => {
+        let result = sortUndefined(a.value, b.value)
+
+        if (result === 0) {
+          result = a.name.localeCompare(b.name)
+        }
+
+        return result
+      })
+  }
+
+  get ansible(): AnsibleComponentModel[] {
+    return this._ansible
   }
 
   get name(): string {
@@ -161,6 +187,17 @@ const getTerraformVariables = (terraformComponent: TerraformComponentModel): Bil
 
   return bomVariables.filter(variable => {
     return !terragruntInputNames.includes(variable.name)
+  })
+}
+
+// TODO: Investigate if this is where variables mapping happens
+const getAnsibleVariables = (ansibleComponent: AnsibleComponentModel): BillOfMaterialVariable[] => {
+
+  const ansibleInputNames: string[] = (ansibleComponent.ansible?.inputs || []).map(input => input.name)
+  const bomVariables: BillOfMaterialVariable[] = ansibleComponent.billOfMaterial?.spec.variables || []
+
+  return bomVariables.filter(variable => {
+    return !ansibleInputNames.includes(variable.name)
   })
 }
 

@@ -20,7 +20,12 @@ import {
   TerraformProvider,
   TerraformVariable,
   TerragruntLayer,
-  TfvarsVariable
+  TfvarsVariable,
+  AnsibleComponentModel,
+  AnsibleOutput,
+  AnsibleProvider,
+  AnsibleVariable,
+  AnsibleVarsVariable
 } from '../models';
 import {
   arrayOf,
@@ -36,7 +41,10 @@ import {
   fromBaseVariable,
   TerraformOutputImpl,
   TerraformTfvars,
-  TerraformVariableImpl
+  TerraformVariableImpl,
+  AnsibleOutputImpl,
+  AnsibleVars,
+  AnsibleVariableImpl
 } from './variables.impl';
 
 export class StageImpl implements Stage, StagePrinter {
@@ -106,6 +114,7 @@ ${indent}}
 `;
   }
 
+  // TODO: Look into how varaibles are mapped
   variablesAsString(stages: {[name: string]: {name: string}}, path: string, indent: string = '  '): string {
     return this.variables
       .filter(v => !!v)
@@ -150,6 +159,34 @@ export class TerraformStageFile implements OutputFile {
     return Promise.resolve(buffer);
   }
 }
+
+// TODO:
+export class AnsibleStageFile implements OutputFile {
+  constructor(private stages: {[name: string]: Stage}) {
+  }
+
+  name = 'main.yml';
+  type = OutputFileType.ansible;
+
+  contents(options: {path: string} = {path: '.'}): Promise<string | Buffer> {
+    const buffer: Buffer = Object
+      .values(this.stages)
+      .sort((a: Stage, b: Stage) => a.name.localeCompare(b.name))
+      .reduce((previousBuffer: Buffer, stage: Stage) => {
+        if (!stage.asString) {
+          stage = new StageImpl(stage);
+        }
+
+        return Buffer.concat([
+          previousBuffer,
+          Buffer.from(stage.asString(this.stages, options.path))
+        ]);
+      }, Buffer.from(''));
+
+    return Promise.resolve(buffer);
+  }
+}
+
 
 export class TerraformVersionFile implements OutputFile {
   constructor(private providers: TerraformProvider[]) {
@@ -236,6 +273,30 @@ export class TerraformVariablesFile implements OutputFile {
   }
 }
 
+export class AnsibleVariablesFile implements OutputFile {
+  constructor(private variables: AnsibleVarsVariable[], private bomVariables?: BillOfMaterialVariable[]) {
+  }
+
+  name = 'variables.yaml';
+  type = OutputFileType.ansible;
+
+  contents(): Promise<string | Buffer> {
+
+    const buffer: Buffer = this.variables
+      .map(mergeBomVariables(arrayOf(this.bomVariables)))
+      .reduce((previousBuffer: Buffer, ansibleVarsVariable: AnsibleVarsVariable) => {
+        const variable = new AnsibleVariableImpl(ansibleVarsVariable);
+
+        return Buffer.concat([
+          previousBuffer,
+          Buffer.from(variable.asString())
+        ]);
+      }, Buffer.from(''));
+
+    return Promise.resolve(buffer);
+  }
+}
+
 export class TerraformOutputFile implements OutputFile {
   constructor(private outputs: TerraformOutput[]) {
   }
@@ -249,6 +310,31 @@ export class TerraformOutputFile implements OutputFile {
       .reduce((previousBuffer: Buffer, output: TerraformOutput) => {
         if (!output.asString) {
           output = new TerraformOutputImpl(output);
+        }
+
+        return Buffer.concat([
+          previousBuffer,
+          Buffer.from(output.asString())
+        ]);
+      }, Buffer.from(''));
+
+    return Promise.resolve(buffer);
+  }
+}
+
+export class AnsibleOutputFile implements OutputFile {
+  constructor(private outputs: AnsibleOutput[]) {
+  }
+
+  name = 'output.yaml';
+  type = OutputFileType.ansible;
+
+  contents(): Promise<string | Buffer> {
+
+    const buffer: Buffer = this.outputs
+      .reduce((previousBuffer: Buffer, output: AnsibleOutput) => {
+        if (!output.asString) {
+          output = new AnsibleOutputImpl(output);
         }
 
         return Buffer.concat([
@@ -348,6 +434,44 @@ export class TerraformTfvarsFile implements OutputFile {
   }
 }
 
+export class AnsibleVarsFile implements OutputFile {
+
+  name : string;
+  type = OutputFileType.ansible;
+  variables: AnsibleVarsVariable[];
+
+  constructor(variables: AnsibleVarsVariable[], public bomVariables?: BillOfMaterialVariable[], name: string = 'variables.yaml') {
+    this.name = name;
+
+    const variableNames: string[] = arrayOf(this.bomVariables).map(v => v.name).asArray();
+
+    this.variables = variables
+      .map(mergeBomVariables(arrayOf(bomVariables)))
+      .filter((variable: AnsibleVarsVariable) => {
+        const ansibleVar = new AnsibleVariableImpl(variable);
+
+        return !(!(ansibleVar.defaultValue === undefined || ansibleVar.defaultValue === null || ansibleVar.required || variableNames.includes(ansibleVar.name)) && !ansibleVar.important)
+      })
+  }
+
+  contents(): Promise<string | Buffer> {
+
+    const buffer: Buffer = this.variables
+      .reduce((previousBuffer: Buffer, variable: TfvarsVariable) => {
+        const ansibleVar = new AnsibleVariableImpl(variable);
+
+        const tfvarsVariable = new AnsibleVars({name: ansibleVar.name, description: ansibleVar.description, value: ansibleVar.defaultValue || ""});
+
+        return Buffer.concat([
+          previousBuffer,
+          Buffer.from(tfvarsVariable.asString())
+        ]);
+      }, Buffer.from(''));
+
+    return Promise.resolve(buffer);
+  }
+}
+
 export class TerraformComponent implements TerraformComponentModel {
   stages: { [name: string]: Stage } = {};
   baseVariables: TerraformVariable[] = [];
@@ -393,6 +517,62 @@ export class TerraformComponent implements TerraformComponentModel {
       this.terragrunt,
       this.tfvarsFile,
       this.credentialsTfvarsFile,
+      ...buildModuleReadmes(this.catalog, this.modules),
+    ]
+      .filter(isDefined)
+      .map(v => v as OutputFile)
+  }
+
+  set files(files: OutputFile[]) {
+    // nothing to do
+  }
+}
+
+export class AnsibleTerraformComponent implements AnsibleComponentModel {
+  stages: { [name: string]: Stage } = {};
+  baseVariables: AnsibleVariable[] = [];
+  baseOutputs: AnsibleOutput[] = [];
+  bomVariables?: BillOfMaterialVariable[] = []
+  modules?: SingleModuleVersion[];
+  providers?: AnsibleProvider[];
+  billOfMaterial?: BillOfMaterialModel;
+  terragrunt?: TerragruntLayer;
+  ansibleVarsFile: AnsibleVarsFile;
+  ansibleCredentialsVarsFile: AnsibleVarsFile;
+  catalog!: CatalogV2Model;
+
+  constructor(model: AnsibleComponentModel, private name: string | undefined) {
+    Object.assign(this as AnsibleComponentModel, model);
+
+    this.ansibleVarsFile = new AnsibleVarsFile(this.baseVariables.filter(v => !v.sensitive), this.bomVariables, 'variables.template.yaml');
+    this.ansibleCredentialsVarsFile = new AnsibleVarsFile(this.baseVariables.filter(v => v.sensitive), this.bomVariables, 'credentials.auto.template.yaml');
+
+    if (this.billOfMaterial) {
+      const bomVariables: BillOfMaterialVariable[] = this.ansibleVarsFile.variables.map(v => Object.assign(
+        {
+          name: v.name,
+        },
+        isDefinedAndNotNull(v.type) ? {type: v.type} : {},
+        isDefinedAndNotNull(v.description) ? {description: v.description} : {},
+        isDefinedAndNotNull(v.defaultValue) ? {value: v.defaultValue} : {},
+        isDefinedAndNotNull((v as any).sensitive || (v as any).variable?.sensitive) ? {sensitive: (v as any).sensitive || (v as any).variable?.sensitive} : {}
+      ))
+      const bomSpec = Object.assign(this.billOfMaterial.spec, {variables: bomVariables})
+
+      this.billOfMaterial = Object.assign(this.billOfMaterial, {spec: bomSpec})
+    }
+  }
+
+  get files(): OutputFile[] {
+    return [
+      new AnsibleStageFile(this.stages),
+      new AnsibleVariablesFile(this.baseVariables, this.bomVariables),
+      new AnsibleOutputFile(this.baseOutputs),
+      this.providers !== undefined && this.providers.length > 0 ? new TerraformProvidersFile(this.providers) : undefined,
+      this.providers !== undefined && this.providers.length > 0 ? new TerraformVersionFile(this.providers) : undefined,
+      this.terragrunt,
+      this.ansibleVarsFile,
+      this.ansibleCredentialsVarsFile,
       ...buildModuleReadmes(this.catalog, this.modules),
     ]
       .filter(isDefined)

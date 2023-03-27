@@ -3,6 +3,7 @@ import { join } from 'path'
 import uniq from 'lodash.uniq'
 import uniqBy from 'lodash.uniqby'
 
+
 import {
   IascableApi,
   IascableBomResult,
@@ -43,13 +44,15 @@ import {
   TerragruntBase,
   TerragruntLayer,
   Tile,
-  UrlFile
+  UrlFile,
+  AnsibleComponentModel
 } from '../../models'
 import { CatalogLoaderApi } from '../catalog-loader'
 import { ModuleSelectorApi } from '../module-selector'
 import { DependencyGraphApi } from '../dependency-graph'
 import { ModuleDocumentationApi } from '../module-documentation'
 import { TerraformBuilderApi } from '../terraform-builder'
+import { AnsibleBuilderApi } from '../ansible-builder'
 import { TileBuilderApi } from '../tile-builder'
 import {
   arrayOf,
@@ -84,6 +87,7 @@ export class CatalogBuilder implements IascableApi {
   loader: CatalogLoaderApi;
   moduleSelector: ModuleSelectorApi;
   terraformBuilder: TerraformBuilderApi;
+  ansibleBuilder: AnsibleBuilderApi;
   tileBuilder: TileBuilderApi;
   dependencyGraph: DependencyGraphApi;
   docBuilder: ModuleDocumentationApi;
@@ -93,6 +97,7 @@ export class CatalogBuilder implements IascableApi {
     this.loader = Container.get(CatalogLoaderApi);
     this.moduleSelector = Container.get(ModuleSelectorApi);
     this.terraformBuilder = Container.get(TerraformBuilderApi);
+    this.ansibleBuilder = Container.get(AnsibleBuilderApi);
     this.tileBuilder = Container.get(TileBuilderApi);
     this.dependencyGraph = Container.get(DependencyGraphApi);
     this.docBuilder = Container.get(ModuleDocumentationApi);
@@ -178,24 +183,29 @@ export class CatalogBuilder implements IascableApi {
     console.log('  Building bom:', name);
 
     const modules: SingleModuleVersion[] = await this.moduleSelector.resolveBillOfMaterial(catalog, bom);
-
+    
     const billOfMaterial: BillOfMaterialModel = applyAnnotationsAndVersionsToBom(bom, modules);
 
-    const terraformComponent: TerraformComponentModel = await this.terraformBuilder.buildTerraformComponent(modules, catalog, billOfMaterial);
+    let component: TerraformComponentModel | AnsibleComponentModel;
+    // TODO: this is where to determine tf vs ans
+    if (modules[0].bomModule?.type === 'ansible') {
+      component = await this.ansibleBuilder.buildAnsibleComponent(modules, catalog, billOfMaterial);
+    } else {
+      component = await this.terraformBuilder.buildTerraformComponent(modules, catalog, billOfMaterial);
+    }
 
-    const tile: Tile | undefined = options?.tileConfig ? await this.tileBuilder.buildTileMetadata(terraformComponent.baseVariables, options.tileConfig) : undefined;
+    const tile: Tile | undefined = options?.tileConfig ? await this.tileBuilder.buildTileMetadata(component.baseVariables, options.tileConfig) : undefined;
 
-    const graph: DotGraph = await this.dependencyGraph.buildFromModules(terraformComponent.modules || modules)
-
+    const graph: DotGraph = await this.dependencyGraph.buildFromModules(component.modules || modules)
     const result: IascableBomResult = new IascableBomResultImpl({
-      billOfMaterial: terraformComponent.billOfMaterial || billOfMaterial,
-      terraformComponent,
+      billOfMaterial: component.billOfMaterial || billOfMaterial,
+      component,
       tile,
       graph: new DotGraphFile(graph),
       supportingFiles: [
         new UrlFile({name: 'apply.sh', url: 'https://raw.githubusercontent.com/cloud-native-toolkit/automation-solutions/main/common-files/apply-terragrunt-variables.sh', type: OutputFileType.executable}),
         new UrlFile({name: 'destroy.sh', url: 'https://raw.githubusercontent.com/cloud-native-toolkit/automation-solutions/main/common-files/destroy-terragrunt.sh', type: OutputFileType.executable}),
-        new BomReadmeFile(billOfMaterial, terraformComponent.modules, terraformComponent),
+        new BomReadmeFile(billOfMaterial, component.modules, component),
       ]
     });
 
@@ -439,7 +449,7 @@ class IascableBundleImpl implements IascableBundle {
 
 class IascableBomResultImpl implements IascableBomResult {
   billOfMaterial: BillOfMaterialModel;
-  terraformComponent: TerraformComponentModel;
+  component: TerraformComponentModel | AnsibleComponentModel;
   supportingFiles: OutputFile[];
   graph?: DotGraphFile;
   tile?: Tile;
@@ -447,7 +457,7 @@ class IascableBomResultImpl implements IascableBomResult {
 
   constructor(params: IascableBomResultBase) {
     this.billOfMaterial = params.billOfMaterial
-    this.terraformComponent = params.terraformComponent
+    this.component = params.component
     this.supportingFiles = params.supportingFiles || []
     this.graph = params.graph
     this.tile = params.tile
@@ -463,7 +473,7 @@ class IascableBomResultImpl implements IascableBomResult {
 
     writeFiles(
       options.flatten ? writer : writer.folder('terraform'),
-      this.terraformComponent.files,
+      this.component.files,
       options
     )
 
@@ -489,7 +499,7 @@ class IascableBomResultImpl implements IascableBomResult {
         writer, [
           new TerraformTfvarsFile(terraformVariables, this.billOfMaterial.spec.variables, 'terraform.template.tfvars'),
           new TerraformTfvarsFile(sensitiveVariables, this.billOfMaterial.spec.variables, 'credentials.auto.template.tfvars'),
-          new VariablesYamlFile({name: 'variables.template.yaml', variables: this.terraformComponent.billOfMaterial?.spec.variables || []})
+          new VariablesYamlFile({name: 'variables.template.yaml', variables: this.component.billOfMaterial?.spec.variables || []})
         ],
         options
       )
@@ -515,7 +525,7 @@ class IascableSolutionResultImpl implements IascableSolutionResult {
     this._solution = Solution.fromModel(params.billOfMaterial)
 
     const terraform: TerraformComponentModel[] = this.results
-      .map(result => result.terraformComponent)
+      .map(result => result.component)
 
     this._boms = terraform
       .map(terraform => terraform.billOfMaterial)
@@ -533,11 +543,11 @@ class IascableSolutionResultImpl implements IascableSolutionResult {
   addTerragruntConfig(): void {
     this.supportingFiles.push(new TerragruntBase())
     this.results
-      .map(result => result.terraformComponent)
-      .filter(terraformComponent => !!terraformComponent.billOfMaterial)
-      .forEach(terraformComponent => {
-        terraformComponent.terragrunt = new TerragruntLayer({
-          currentBom: terraformComponent.billOfMaterial as BillOfMaterialModel,
+      .map(result => result.component)
+      .filter(component => !!component.billOfMaterial)
+      .forEach(component => {
+        component.terragrunt = new TerragruntLayer({
+          currentBom: component.billOfMaterial as BillOfMaterialModel,
           boms: this._boms
         })
       })

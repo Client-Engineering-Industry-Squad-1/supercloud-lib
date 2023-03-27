@@ -38,6 +38,7 @@ export interface BaseBillOfMaterialModule {
   outputs?: BillOfMaterialModuleOutput[];
   dependencies?: BillOfMaterialModuleDependency[];
   providers?: BillOfMaterialModuleProvider[];
+  type?: string;
 }
 
 export interface BillOfMaterialModuleById extends BaseBillOfMaterialModule {

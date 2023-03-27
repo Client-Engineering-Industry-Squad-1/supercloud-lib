@@ -11,7 +11,9 @@ import {
   ModuleVariable,
   TerraformOutput,
   TerraformProvider,
-  TerraformVariable
+  TerraformVariable,
+  AnsibleOutput,
+  AnsibleVariable
 } from '../models';
 import {arrayOf, ArrayUtil, isDefined} from '../util';
 
@@ -345,6 +347,155 @@ export class TerraformTfvars {
 #${this.name}="${this.value}"
 
 `
+  }
+}
+
+
+export class AnsibleVariableImpl implements AnsibleVariable {
+  name: string = '';
+  private _type: string = '';
+  private _description: string = '';
+  private _defaultValue: any;
+  private _required?: boolean;
+  private _important?: boolean;
+
+  constructor(values: {name: string, defaultValue?: string, type?: string, description?: string, required?: boolean, important?: boolean}) {
+    Object.assign(this as AnsibleVariable, values);
+  }
+
+  get type() {
+    return this._type || 'string';
+  }
+  set type(type: string) {
+    this._type = type;
+  }
+
+  get defaultValue() {
+    return this._defaultValue;
+  }
+  set defaultValue(value: string) {
+    this._defaultValue = value;
+  }
+
+  get description() {
+    return this._description || `the value of ${this.name}`;
+  }
+  set description(description: string) {
+    this._description = description;
+  }
+
+  get required(): boolean | undefined {
+    return this._required;
+  }
+  set required(required: boolean | undefined) {
+    this._required = required;
+  }
+
+  get important(): boolean | undefined {
+    return this._important
+  }
+  set important(important: boolean | undefined) {
+    this._important = important
+  }
+
+  asString(): string {
+    return `variable "${this.name}" {
+  type = ${this.typeOutput()}
+  description = "${this.description}"${this.defaultValueProp()}
+}
+`;
+  }
+
+  defaultValueProp(): string {
+    if (this._defaultValue === undefined || this.required) {
+      return '';
+    }
+
+    const value = this.getDefaultValue();
+
+    return `
+  default = ${value}`;
+  }
+
+  getDefaultValue(): string {
+    const typeFormatter: Formatter = getTypeFormatter(this.type);
+
+    const {value} = typeFormatter(this.defaultValue);
+
+    if (this.name === 'xxxxx') {
+      console.log('Variable: ' + this.name, {defaultValue: this.defaultValue, formattedValue: value, typeFormatter: typeFormatter.toString(), type: this.type})
+    }
+
+    return value;
+  }
+
+  typeOutput(): string {
+    const typeFormatter: Formatter = getTypeFormatter(this.type);
+
+    const type = typeFormatter(this.defaultValue || '').type;
+
+    if (this.name === 'xxxxx') {
+      console.log('Variable: ' + this.name, {type: type, originalType: this.type, typeFormatter: typeFormatter.toString()})
+    }
+
+    return type;
+  }
+}
+
+export class AnsibleVars {
+  name: string;
+  description: string;
+  value: string;
+
+  constructor({name, description, value}: {name: string, description: string, value: string}) {
+    this.name = name;
+    this.description = description;
+    this.value = value;
+  }
+
+  asString(): string {
+    return `## ${this.name}: ${this.description}
+#${this.name}="${this.value}"
+
+`
+  }
+}
+
+export class AnsibleOutputImpl implements AnsibleOutput {
+  name: string = '';
+  private _description: string = '';
+  value: string = '';
+  sensitive: boolean = false
+
+  constructor(values: {name: string, description?: string, value: string, sensitive?: boolean}) {
+    this.name = values.name
+    this.description = values.description || ''
+    this.value = values.value
+    this.sensitive = values.sensitive || false
+  }
+
+  get description() {
+    return this._description || `the value of ${this.name}`;
+  }
+  set description(description: string) {
+    this._description = description;
+  }
+
+  sensitiveValue() {
+    if (!this.sensitive) {
+      return ''
+    }
+
+    return `
+  sensitive = true`
+  }
+
+  asString(): string {
+    return `output "${this.name}" {
+  description = "${this.description}"
+  value = ${this.value}${this.sensitiveValue()}
+}
+`;
   }
 }
 

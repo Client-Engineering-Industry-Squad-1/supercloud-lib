@@ -2,8 +2,9 @@ import uniq from 'lodash.uniq';
 import {Arguments} from 'yargs';
 
 export const DEFAULT_CATALOG_URLS = [
-  'https://modules.cloudnativetoolkit.dev/index.yaml',
-  'https://cloud-native-toolkit.github.io/automation-solutions/index.yaml'
+  'https://raw.githubusercontent.com/jennuineness/supercloud-catalog/main/index.yaml',
+  // 'https://modules.cloudnativetoolkit.dev/index.yaml',
+  // 'https://cloud-native-toolkit.github.io/automation-solutions/index.yaml',
 ]
 
 export const setupCatalogUrls = (defaultCatalogUrls: string[] = DEFAULT_CATALOG_URLS) => {
