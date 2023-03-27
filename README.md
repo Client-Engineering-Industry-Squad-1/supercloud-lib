@@ -589,3 +589,4 @@ do the following:
 8. In the browser, create a new release. Be sure to pick the tag you just created for the release tag and check the "pre-release" box. Provide the tag name as the release title and press the "Generate changelog"
 9. Once the release is created, it will trigger a workflow to push the new version to the npm registry and to attach the assets to the release.
 
+

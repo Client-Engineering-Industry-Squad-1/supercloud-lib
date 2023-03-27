@@ -1,6 +1,6 @@
 {
-  "name": "@cloudnativetoolkit/iascable",
-  "version": "3.2.2",
+  "name": "supercloud-lib",
+  "version": "0.1.0",
   "description": "",
   "keywords": [],
   "main": "./build/cjs/index.js",
@@ -10,10 +10,10 @@
     "build",
     "scripts"
   ],
-  "author": "Sean Sundberg <seansund@us.ibm.com>",
+  "author": "",
   "repository": {
     "type": "git",
-    "url": "https://github.com/cloud-native-toolkit/iascable.git"
+    "url": "https://github.com/Client-Engineering-Industry-Squad-1/supercloud-lib.git"
   },
   "license": "MIT",
   "bin": {
@@ -52,8 +52,8 @@
     "build": "npm run clean && npm run type:dts && npm run build:main",
     "build:main": "node -r ./esbuild-hook ./scripts/build",
     "postbuild": "npm run postbuild:cjs && npm run postbuild:esm",
-    "postbuild:cjs": "copyfiles -u 1 src/**/*.liquid build/cjs/ && chmod +x build/cjs/script*.js",
-    "postbuild:esm": "copyfiles -u 1 src/**/*.liquid build/esm/ && chmod +x build/esm/script*.js",
+    "postbuild:cjs": "copyfiles -u 1 src/**/templates/* build/cjs/ && chmod +x build/cjs/script*.js",
+    "postbuild:esm": "copyfiles -u 1 src/**/templates/* && chmod +x build/esm/script*.js",
     "clean": "node -r ./esbuild-hook ./scripts/clean",
     "type:dts": "tsc --emitDeclarationOnly",
     "type:check": "tsc --noEmit",
@@ -176,7 +176,7 @@
     "yargs": "^17.2.1",
     "z-schema": "^5.0.4"
   },
-  "homepage": "https://github.com/cloud-native-toolkit/iascable.git#readme",
+  "homepage": "https://github.com/Client-Engineering-Industry-Squad-1/supercloud-lib.git#readme",
   "overrides": {
     "semver-regex": "3.1.4"
   }
