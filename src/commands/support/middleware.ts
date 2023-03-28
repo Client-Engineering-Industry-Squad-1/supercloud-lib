@@ -3,8 +3,8 @@ import {Arguments} from 'yargs';
 
 export const DEFAULT_CATALOG_URLS = [
   'https://raw.githubusercontent.com/Client-Engineering-Industry-Squad-1/supercloud-catalog/main/index.yaml',
-  // 'https://modules.cloudnativetoolkit.dev/index.yaml',
-  // 'https://cloud-native-toolkit.github.io/automation-solutions/index.yaml',
+  'https://modules.cloudnativetoolkit.dev/index.yaml',
+  'https://cloud-native-toolkit.github.io/automation-solutions/index.yaml',
 ]
 
 export const setupCatalogUrls = (defaultCatalogUrls: string[] = DEFAULT_CATALOG_URLS) => {

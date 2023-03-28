@@ -8,26 +8,35 @@
     - "{{ credentials_template_vars }}"
     - "{{ shared_outputs_vars }}"
   register: terraform_result
+- name: Set tmp file path
+  set_fact:
+    tmp_file: "{{ role_path }}/tmp.json"
 - name: Create tmp file if doesn't exist
   file:
-    path: "{{ role_path }}/tmp.testvars"
+    path: "{{ tmp_file }}"
     state: touch
   check_mode: no
 - name: Write outputs to tmp file
   template:
     src: "{{ shared_outputs_template }}"
-    dest: "{{ role_path }}/tmp.testvars"
+    dest: "{{ tmp_file }}"
     lstrip_blocks: true
   check_mode: no
-- name: Append to shared outputs file
-  blockinfile:
-    create: true
-    path: "{{ shared_outputs_vars }}"
-    block: "{{ lookup('file', '{{ role_path }}/tmp.testvars') }}"
-    marker: "# {mark} ANSIBLE MANAGED BLOCK - {{ playbook_dir | basename }}"
+- name: Set files content to variables
+  set_fact:
+    shared_outputs_content: "{{ lookup('file', shared_outputs_vars) }}"
+    tmp_outputs_content: "{{ lookup('file', tmp_file) }}"
+- name: Read file directly into fact
+  set_fact:
+    merged_outputs: "{{ shared_outputs_content | combine(tmp_outputs_content, recursive=True) }}"
+- name: Write over shared outputs file
+  copy:
+    dest: "{{ shared_outputs_vars }}"
+    force: true
+    content: "{{ merged_outputs | to_nice_json }}"
   check_mode: no
 - name: Delete tmp file
   file:
-    path: "{{ role_path }}/tmp.testvars"
+    path: "{{ tmp_file }}"
     state: absent
   check_mode: no

@@ -1,11 +1,9 @@
+{
 {%- for key, value in terraform_result.outputs.items() -%}
-  {%- if value.value is mapping -%}
-    {%- for obj_key, obj_value in value.value.items() -%}
-      {%- set value_escaped_newline = obj_value | replace("\n","\\n") -%}
-      {{ key + "_" + obj_key + "=\"" + value_escaped_newline + "\"\n" }}
-    {%- endfor -%}
+  {%- if value.value is string -%}
+    {{ "\"" + key + "\"" + ":\"" + value.value + "\"," }}
   {%- else -%}
-    {%- set value_escaped_newline = value.value | replace("\n","\\n") -%}
-    {{ key + "=\"" + value_escaped_newline + "\"\n" }}
+    {{ "\"" + key + "\"" + ":" }}{{ value.value }}{{"," if not loop.last else ""}}
   {%- endif -%}
 {%- endfor -%}
+}
