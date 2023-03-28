@@ -81,6 +81,7 @@ import {
   VariablesYamlFile
 } from '../../model-impls'
 import { LayerNeeds, LayerProvides } from '../../models/layer-dependencies.model'
+import { loadFile } from '../../util/file-util'
 
 export class CatalogBuilder implements IascableApi {
   logger: LoggerApi;
@@ -477,6 +478,10 @@ class IascableBomResultImpl implements IascableBomResult {
 
     writeFiles(writer, this.supportingFiles, options)
 
+    const splitUrl = this.terraformComponent.modules ? this.terraformComponent.modules[0].id.split('/') : []
+    const urlPath = splitUrl.length > 1 ? splitUrl.slice(-2).join('/') : ''
+    const urlModule = splitUrl.length > 1 ? splitUrl.slice(-1)[0] : ''
+
     // If this is a single module solution
     if (!this.inSolution) {
       const terraformVariables: BillOfMaterialVariable[] = (this.billOfMaterial.spec.variables || [])
@@ -488,14 +493,25 @@ class IascableBomResultImpl implements IascableBomResult {
 
       writeFiles(writer, [new LocalFile({name: 'shared_outputs_template.j2', type: OutputFileType.jinja, path:  join(__dirname, './templates/shared_outputs_template.j2')})], options)
 
-      writeFiles(
-        writer.folder('group_vars'), [
-          new TerraformTfvarsFile(terraformVariables, this.billOfMaterial.spec.variables, 'terraform.template.tfvars'),
-          new TerraformTfvarsFile(sensitiveVariables, this.billOfMaterial.spec.variables, 'credentials.auto.template.tfvars'),
-          new VariablesYamlFile({name: 'variables.template.yaml', variables: this.terraformComponent.billOfMaterial?.spec.variables || []})
-        ],
-        options
-      )
+      // TODO: Merge Ansible Variables accordingly if there is more than one module
+      if (this.terraformComponent.modules && this.terraformComponent.modules[0].type === 'ansible') {
+        const url = `https://raw.githubusercontent.com/${urlPath}/main/group_vars/shared_outputs.json`
+        writeFiles(
+          writer.folder('group_vars'), [
+            new UrlFile({name: 'shared_outputs.json', type: OutputFileType.ansible, url: url})
+          ],
+          options
+        )
+      } else {
+        writeFiles(
+          writer.folder('group_vars'), [
+            new TerraformTfvarsFile(terraformVariables, this.billOfMaterial.spec.variables, 'terraform.template.tfvars'),
+            new TerraformTfvarsFile(sensitiveVariables, this.billOfMaterial.spec.variables, 'credentials.auto.template.tfvars'),
+            new VariablesYamlFile({name: 'variables.template.yaml', variables: this.terraformComponent.billOfMaterial?.spec.variables || []})
+          ],
+          options
+        )
+      }
 
       const basePath = join(getBomPath(this.billOfMaterial), 'roles')
       writer = baseWriter.folder(join(basePath, this.billOfMaterial.metadata?.name || 'bill-of-material'))
@@ -507,12 +523,23 @@ class IascableBomResultImpl implements IascableBomResult {
       options
     )
 
-    writeFiles(
-      writer.folder('tasks'), [
-        new LocalFile({name: 'main.yml', type: OutputFileType.ansible, path:  join(__dirname, './templates/main.yml')})
-      ],
-      options
-    )
+    if (this.terraformComponent.modules && this.terraformComponent.modules[0].type === 'ansible') {
+      const url = `https://raw.githubusercontent.com/${urlPath}/main/roles/${urlModule}/tasks/main.yml`
+
+      writeFiles(
+        writer.folder('tasks'), [
+          new UrlFile({name: 'main.yml', type: OutputFileType.ansible, url: url})
+        ],
+        options
+      )
+    } else {
+      writeFiles(
+        writer.folder('tasks'), [
+          new LocalFile({name: 'main.yml', type: OutputFileType.ansible, path:  join(__dirname, './templates/main.yml')})
+        ],
+        options
+      )
+    }
 
     return writer
   }
