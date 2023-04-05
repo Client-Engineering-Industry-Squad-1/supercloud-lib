@@ -46,8 +46,7 @@ import {
   UrlFile,
   LocalFile,
   AnsibleModulePlaybookFile,
-  AnsibleSolutionPlaybookFile,
-  InputVariable
+  AnsibleSolutionPlaybookFile
 } from '../../models'
 import { CatalogLoaderApi } from '../catalog-loader'
 import { ModuleSelectorApi } from '../module-selector'
@@ -103,7 +102,7 @@ export class CatalogBuilder implements IascableApi {
     this.docBuilder = Container.get(ModuleDocumentationApi);
   }
 
-  async build(catalogUrl: string, inputVariables: InputVariable[], input?: BillOfMaterialModel, options?: IascableOptions): Promise<IascableBundle> {
+  async build(catalogUrl: string, inputVariables: BillOfMaterialVariable[], input?: BillOfMaterialModel, options?: IascableOptions): Promise<IascableBundle> {
     const catalog: Catalog = await this.loader.loadCatalog(catalogUrl);
 
     if (!input) {
@@ -113,13 +112,13 @@ export class CatalogBuilder implements IascableApi {
     return this.buildBom(catalog, inputVariables, input, options);
   }
 
-  async buildBoms(catalogUrl: string | string[], inputVariables: InputVariable[], boms: Array<BillOfMaterialModel | SolutionModel>, options?: IascableOptions): Promise<IascableBundle> {
+  async buildBoms(catalogUrl: string | string[], inputVariables: BillOfMaterialVariable[], boms: Array<BillOfMaterialModel | SolutionModel>, options?: IascableOptions): Promise<IascableBundle> {
     const catalog: Catalog = await this.loader.loadCatalog(catalogUrl);
 
     return this.buildBomsFromCatalog(catalog, inputVariables, boms, options)
   }
 
-  async buildBomsFromCatalog(catalog: Catalog, inputVariables: InputVariable[], boms: Array<BillOfMaterialModel | SolutionModel>, options?: IascableOptions): Promise<IascableBundle> {
+  async buildBomsFromCatalog(catalog: Catalog, inputVariables: BillOfMaterialVariable[], boms: Array<BillOfMaterialModel | SolutionModel>, options?: IascableOptions): Promise<IascableBundle> {
 
     if (!boms || boms.length === 0) {
       throw new Error('Bill of Material is required');
@@ -142,7 +141,7 @@ export class CatalogBuilder implements IascableApi {
     return result.reduce(mergeIascableBundles);
   }
 
-  async buildSolution(catalog: Catalog, inputVariables: InputVariable[], solutionModel: SolutionModel, options?: IascableOptions): Promise<IascableBundle> {
+  async buildSolution(catalog: Catalog, inputVariables: BillOfMaterialVariable[], solutionModel: SolutionModel, options?: IascableOptions): Promise<IascableBundle> {
 
     const logger: LoggerApi = Container.get(LoggerApi)
 
@@ -177,7 +176,7 @@ export class CatalogBuilder implements IascableApi {
     return bomBundleToSolutionBundle(solution, result, inputVariables)
   }
 
-  async buildBom(catalog: Catalog, inputVariables: InputVariable[], bom: BillOfMaterialModel, options?: IascableOptions,): Promise<IascableBundle> {
+  async buildBom(catalog: Catalog, inputVariables: BillOfMaterialVariable[], bom: BillOfMaterialModel, options?: IascableOptions,): Promise<IascableBundle> {
 
     const name = bom?.metadata?.name || 'component';
     console.log('  Building bom:', name);
@@ -451,7 +450,7 @@ class IascableBomResultImpl implements IascableBomResult {
   graph?: DotGraphFile;
   tile?: Tile;
   inSolution?: boolean;
-  inputVariables: InputVariable[];
+  inputVariables: BillOfMaterialVariable[];
 
   constructor(params: IascableBomResultBase) {
     this.billOfMaterial = params.billOfMaterial
@@ -554,12 +553,12 @@ class IascableSolutionResultImpl implements IascableSolutionResult {
   results: IascableBomResult[];
   supportingFiles: OutputFile[];
   variableFiles: OutputFile[];
-  inputVariables: InputVariable[];
+  inputVariables: BillOfMaterialVariable[];
 
   _solution: Solution;
   _boms: BillOfMaterialModel[];
 
-  constructor(params: IascableSolutionResultBase, inputVariables: InputVariable[]) {
+  constructor(params: IascableSolutionResultBase, inputVariables: BillOfMaterialVariable[]) {
     this.results = params.results
     this.billOfMaterial = applyLayerVersions(params.billOfMaterial, this.results)
     this.supportingFiles = params.supportingFiles || []
@@ -766,7 +765,7 @@ const hasUnmetClusterNeed = (bundle: IascableBundle): boolean => {
     !provides.map(provide => provide.name).includes('cluster')
 }
 
-const bomBundleToSolutionBundle = (solution: Solution, bundle: IascableBundle, inputVariables: InputVariable[]): IascableBundle => {
+const bomBundleToSolutionBundle = (solution: Solution, bundle: IascableBundle, inputVariables: BillOfMaterialVariable[]): IascableBundle => {
   const results: IascableBomResult[] = bundle.results
     .filter(isIascableBomResult)
     .map(r => Object.assign(r, {inSolution: true}))

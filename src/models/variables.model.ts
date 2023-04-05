@@ -83,8 +83,3 @@ export type Formatter = (value: string) => {type: string, value: string};
 
 export interface BaseOutput extends IBaseOutput {
 }
-
-export interface InputVariable {
-  name: string;
-  value: string;
-}

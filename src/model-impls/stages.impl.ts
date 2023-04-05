@@ -20,8 +20,7 @@ import {
   TerraformProvider,
   TerraformVariable,
   TerragruntLayer,
-  TfvarsVariable,
-  InputVariable
+  TfvarsVariable
 } from '../models';
 import {
   arrayOf,
@@ -214,7 +213,7 @@ export class TerraformProvidersFile implements OutputFile {
 }
 
 export class TerraformVariablesFile implements OutputFile {
-  constructor(private variables: TfvarsVariable[], private inputVariables: InputVariable[], private bomVariables?: BillOfMaterialVariable[]) {
+  constructor(private variables: TfvarsVariable[], private inputVariables: BillOfMaterialVariable[], private bomVariables?: BillOfMaterialVariable[]) {
   }
 
   name = 'variables.tf';
@@ -317,7 +316,7 @@ export class TerraformTfvarsFile implements OutputFile {
   type = OutputFileType.terraform;
   variables: TfvarsVariable[];
 
-  constructor(variables: TfvarsVariable[], public inputVariables: InputVariable[], public bomVariables?: BillOfMaterialVariable[], name: string = 'terraform.tfvars') {
+  constructor(variables: TfvarsVariable[], public inputVariables: BillOfMaterialVariable[], public bomVariables?: BillOfMaterialVariable[], name: string = 'terraform.tfvars') {
     this.name = name;
 
     const variableNames: string[] = arrayOf(this.bomVariables).map(v => v.name).asArray();
@@ -325,7 +324,7 @@ export class TerraformTfvarsFile implements OutputFile {
     this.variables = variables
       .map(mergeBomVariables(arrayOf(bomVariables)))
       .filter((variable: TfvarsVariable) => {
-        const inputVariable: Optional<InputVariable> = arrayOf(inputVariables)
+        const inputVariable: Optional<BillOfMaterialVariable> = arrayOf(inputVariables)
           .filter(v => v.name === variable.name).first();
 
         variable.value = inputVariable.isPresent() ? inputVariable.get().value : ''
@@ -366,9 +365,9 @@ export class TerraformComponent implements TerraformComponentModel {
   tfvarsFile: TerraformTfvarsFile;
   credentialsTfvarsFile: TerraformTfvarsFile;
   catalog!: CatalogV2Model;
-  inputVariables: InputVariable[];
+  inputVariables: BillOfMaterialVariable[];
 
-  constructor(model: TerraformComponentModel, private name: string | undefined, inputVariables: InputVariable[]) {
+  constructor(model: TerraformComponentModel, private name: string | undefined, inputVariables: BillOfMaterialVariable[]) {
     this.inputVariables = inputVariables;
     Object.assign(this as TerraformComponentModel, model);
 

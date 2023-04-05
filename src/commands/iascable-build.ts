@@ -11,7 +11,7 @@ import {
   CustomResourceDefinition,
   isTileConfig,
   SolutionModel,
-  InputVariable
+  BillOfMaterialVariable
 } from '../models'
 import { setInputVariables } from '../model-impls/variables.impl'
 import { IascableApi, IascableBundle, IascableOptions } from '../services'
@@ -111,7 +111,7 @@ export const handler = async (argv: Arguments<BuilderArgs>) => {
   process.env.LOG_LEVEL = argv.debug ? 'debug' : 'info';
 
   // Set input variables if exists
-  const inputVariables: InputVariable[] | [] = argv.vars ? setInputVariables(String(argv.vars)) : [];
+  const inputVariables: BillOfMaterialVariable[] | [] = argv.vars ? setInputVariables(String(argv.vars)) : [];
 
   const cmd: IascableApi = Container.get(IascableApi);
   const logger: LoggerApi = Container.get(LoggerApi).child('build');

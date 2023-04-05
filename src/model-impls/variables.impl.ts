@@ -13,7 +13,7 @@ import {
   TerraformOutput,
   TerraformProvider,
   TerraformVariable,
-  InputVariable
+  BillOfMaterialVariable
 } from '../models';
 import {arrayOf, ArrayUtil, isDefined} from '../util';
 
@@ -522,10 +522,10 @@ const buildVariableName = (props: IPlaceholderVariable): string => {
   return `${props.stageName}_${props.alias || props.name}`
 }
 
-export const setInputVariables = (variables: string): InputVariable[] => {
+export const setInputVariables = (variables: string): BillOfMaterialVariable[] => {
   const vars: object = JSON.parse(variables);
 
-  const inputVariables: InputVariable[] = [];
+  const inputVariables: BillOfMaterialVariable[] = [];
   forOwn(vars, function(value, key) {
     inputVariables.push({
       name: key,

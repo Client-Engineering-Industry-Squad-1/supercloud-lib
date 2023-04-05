@@ -5,7 +5,7 @@ import {
   TerraformComponentModel,
   Tile,
   TileConfig,
-  InputVariable
+  BillOfMaterialVariable
 } from '../../models';
 import {DotGraphFile} from '../../models/graph.model';
 import {SolutionModel} from '../../models/solution.model';
@@ -27,7 +27,7 @@ export interface IascableBomResultBase extends IasableResult<BillOfMaterialModel
   terraformComponent: TerraformComponentModel;
   tile?: Tile;
   graph?: DotGraphFile;
-  inputVariables: InputVariable[];
+  inputVariables: BillOfMaterialVariable[];
 }
 
 export interface IascableBomResult extends IascableBomResultBase, WritableBundle {
@@ -66,7 +66,7 @@ export interface IascableOptions {
 }
 
 export abstract class IascableApi {
-  abstract build(catalogUrl: string, inputVariables: InputVariable[], input?: BillOfMaterialModel, options?: IascableOptions): Promise<IascableBundle>;
-  abstract buildBoms(catalogUrl: string | string[], inputVariables: InputVariable[], input: Array<BillOfMaterialModel | SolutionModel>, options?: IascableOptions): Promise<IascableBundle>;
+  abstract build(catalogUrl: string, inputVariables: BillOfMaterialVariable[], input?: BillOfMaterialModel, options?: IascableOptions): Promise<IascableBundle>;
+  abstract buildBoms(catalogUrl: string | string[], inputVariables: BillOfMaterialVariable[], input: Array<BillOfMaterialModel | SolutionModel>, options?: IascableOptions): Promise<IascableBundle>;
   abstract moduleDocumentation(catalogUrl: string | string[], moduleName: string, options?: IascableOptions): Promise<OutputFile>;
 }
