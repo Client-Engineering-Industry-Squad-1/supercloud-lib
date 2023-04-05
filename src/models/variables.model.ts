@@ -18,6 +18,7 @@ export interface IBaseVariable {
   stageName?: string;
   important?: boolean;
   sensitive?: boolean;
+  value?: string;
 }
 
 export interface IBaseOutput {
@@ -81,4 +82,9 @@ export interface TerraformVariable extends IBaseVariable {
 export type Formatter = (value: string) => {type: string, value: string};
 
 export interface BaseOutput extends IBaseOutput {
+}
+
+export interface InputVariable {
+  name: string;
+  value: string;
 }

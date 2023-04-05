@@ -1,4 +1,5 @@
 import {StageNotFound} from '../errors';
+import {forOwn} from 'lodash';
 import {
   BaseOutput,
   BaseVariable,
@@ -11,7 +12,8 @@ import {
   ModuleVariable,
   TerraformOutput,
   TerraformProvider,
-  TerraformVariable
+  TerraformVariable,
+  InputVariable
 } from '../models';
 import {arrayOf, ArrayUtil, isDefined} from '../util';
 
@@ -245,8 +247,9 @@ export class TerraformVariableImpl implements TerraformVariable {
   private _defaultValue: any;
   private _required?: boolean;
   private _important?: boolean;
+  private _value: string = '';
 
-  constructor(values: {name: string, defaultValue?: string, type?: string, description?: string, required?: boolean, important?: boolean}) {
+  constructor(values: {name: string, defaultValue?: string, type?: string, description?: string, required?: boolean, important?: boolean, value?: string}) {
     Object.assign(this as TerraformVariable, values);
   }
 
@@ -283,6 +286,13 @@ export class TerraformVariableImpl implements TerraformVariable {
   }
   set important(important: boolean | undefined) {
     this._important = important
+  }
+
+  get value() {
+    return this._value;
+  }
+  set value(value: string) {
+    this._value = value;
   }
 
   asString(): string {
@@ -340,9 +350,10 @@ export class TerraformTfvars {
     this.value = value;
   }
 
+  // TODO: Convert to JSON
   asString(): string {
     return `## ${this.name}: ${this.description}
-#${this.name}="${this.value}"
+${this.name}="${this.value}"
 
 `
   }
@@ -509,4 +520,18 @@ const buildVariableName = (props: IPlaceholderVariable): string => {
   }
 
   return `${props.stageName}_${props.alias || props.name}`
+}
+
+export const setInputVariables = (variables: string): InputVariable[] => {
+  const vars: object = JSON.parse(variables);
+
+  const inputVariables: InputVariable[] = [];
+  forOwn(vars, function(value, key) {
+    inputVariables.push({
+      name: key,
+      value: value
+    });
+  });
+
+  return inputVariables;
 }

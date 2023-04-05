@@ -42,4 +42,5 @@ export interface TfvarsVariable {
   required?: boolean;
   important?: boolean;
   sensitive?: boolean;
+  value?: string;
 }

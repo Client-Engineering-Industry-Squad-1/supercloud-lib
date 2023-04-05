@@ -20,7 +20,8 @@ import {
   TerraformProvider,
   TerraformVariable,
   TerragruntLayer,
-  TfvarsVariable
+  TfvarsVariable,
+  InputVariable
 } from '../models';
 import {
   arrayOf,
@@ -213,7 +214,7 @@ export class TerraformProvidersFile implements OutputFile {
 }
 
 export class TerraformVariablesFile implements OutputFile {
-  constructor(private variables: TfvarsVariable[], private bomVariables?: BillOfMaterialVariable[]) {
+  constructor(private variables: TfvarsVariable[], private inputVariables: InputVariable[], private bomVariables?: BillOfMaterialVariable[]) {
   }
 
   name = 'variables.tf';
@@ -316,7 +317,7 @@ export class TerraformTfvarsFile implements OutputFile {
   type = OutputFileType.terraform;
   variables: TfvarsVariable[];
 
-  constructor(variables: TfvarsVariable[], public bomVariables?: BillOfMaterialVariable[], name: string = 'terraform.tfvars') {
+  constructor(variables: TfvarsVariable[], public inputVariables: InputVariable[], public bomVariables?: BillOfMaterialVariable[], name: string = 'terraform.tfvars') {
     this.name = name;
 
     const variableNames: string[] = arrayOf(this.bomVariables).map(v => v.name).asArray();
@@ -324,6 +325,11 @@ export class TerraformTfvarsFile implements OutputFile {
     this.variables = variables
       .map(mergeBomVariables(arrayOf(bomVariables)))
       .filter((variable: TfvarsVariable) => {
+        const inputVariable: Optional<InputVariable> = arrayOf(inputVariables)
+          .filter(v => v.name === variable.name).first();
+
+        variable.value = inputVariable.isPresent() ? inputVariable.get().value : ''
+
         const terraformVar = new TerraformVariableImpl(variable);
 
         return !(!(terraformVar.defaultValue === undefined || terraformVar.defaultValue === null || terraformVar.required || variableNames.includes(terraformVar.name)) && !terraformVar.important)
@@ -336,7 +342,7 @@ export class TerraformTfvarsFile implements OutputFile {
       .reduce((previousBuffer: Buffer, variable: TfvarsVariable) => {
         const terraformVar = new TerraformVariableImpl(variable);
 
-        const tfvarsVariable = new TerraformTfvars({name: terraformVar.name, description: terraformVar.description, value: terraformVar.defaultValue || ""});
+        const tfvarsVariable = new TerraformTfvars({name: terraformVar.name, description: terraformVar.description, value: terraformVar.value });
 
         return Buffer.concat([
           previousBuffer,
@@ -360,12 +366,14 @@ export class TerraformComponent implements TerraformComponentModel {
   tfvarsFile: TerraformTfvarsFile;
   credentialsTfvarsFile: TerraformTfvarsFile;
   catalog!: CatalogV2Model;
+  inputVariables: InputVariable[];
 
-  constructor(model: TerraformComponentModel, private name: string | undefined) {
+  constructor(model: TerraformComponentModel, private name: string | undefined, inputVariables: InputVariable[]) {
+    this.inputVariables = inputVariables;
     Object.assign(this as TerraformComponentModel, model);
 
-    this.tfvarsFile = new TerraformTfvarsFile(this.baseVariables.filter(v => !v.sensitive), this.bomVariables, 'terraform.template.tfvars');
-    this.credentialsTfvarsFile = new TerraformTfvarsFile(this.baseVariables.filter(v => v.sensitive), this.bomVariables, 'credentials.auto.template.tfvars');
+    this.tfvarsFile = new TerraformTfvarsFile(this.baseVariables.filter(v => !v.sensitive), this.inputVariables, this.bomVariables, 'terraform.template.tfvars');
+    this.credentialsTfvarsFile = new TerraformTfvarsFile(this.baseVariables.filter(v => v.sensitive), this.inputVariables, this.bomVariables, 'credentials.auto.template.tfvars');
 
     if (this.billOfMaterial) {
       const bomVariables: BillOfMaterialVariable[] = this.tfvarsFile.variables.map(v => Object.assign(
@@ -386,7 +394,7 @@ export class TerraformComponent implements TerraformComponentModel {
   get files(): OutputFile[] {
     return [
       new TerraformStageFile(this.stages),
-      new TerraformVariablesFile(this.baseVariables, this.bomVariables),
+      new TerraformVariablesFile(this.baseVariables, this.inputVariables, this.bomVariables),
       new TerraformOutputFile(this.baseOutputs),
       this.providers !== undefined && this.providers.length > 0 ? new TerraformProvidersFile(this.providers) : undefined,
       this.providers !== undefined && this.providers.length > 0 ? new TerraformVersionFile(this.providers) : undefined,

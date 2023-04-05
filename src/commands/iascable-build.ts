@@ -10,8 +10,10 @@ import {
   BillOfMaterialModel,
   CustomResourceDefinition,
   isTileConfig,
-  SolutionModel
+  SolutionModel,
+  InputVariable
 } from '../models'
+import { setInputVariables } from '../model-impls/variables.impl'
 import { IascableApi, IascableBundle, IascableOptions } from '../services'
 import {
   BundleWriter,
@@ -88,6 +90,11 @@ export const builder: CommandBuilder<any, any> = (yargs: Argv<any>) => {
       type: 'boolean',
       describe: 'Flag to turn on more detailed output message',
     })
+    .option('vars', {
+      description: 'Module Key-Value variables as JSON',
+      type: 'string',
+      demandOption: false,
+    })
     .middleware(setupCatalogUrls(DEFAULT_CATALOG_URLS))
     .check((argv) => {
       if (!(argv.reference && argv.reference.length > 0) && !(argv.input && argv.input.length > 0)) {
@@ -103,6 +110,9 @@ type BuilderArgs = IascableInput & CommandLineInput & {flattenOutput: boolean, z
 export const handler = async (argv: Arguments<BuilderArgs>) => {
   process.env.LOG_LEVEL = argv.debug ? 'debug' : 'info';
 
+  // Set input variables if exists
+  const inputVariables: InputVariable[] | [] = argv.vars ? setInputVariables(String(argv.vars)) : [];
+
   const cmd: IascableApi = Container.get(IascableApi);
   const logger: LoggerApi = Container.get(LoggerApi).child('build');
 
@@ -117,7 +127,7 @@ export const handler = async (argv: Arguments<BuilderArgs>) => {
   const options: IascableOptions = buildCatalogBuilderOptions(argv);
 
   try {
-    const result: IascableBundle = await cmd.buildBoms(catalogUrls, boms, options);
+    const result: IascableBundle = await cmd.buildBoms(catalogUrls, inputVariables, boms, options);
 
     const outputDir = argv.outDir || './output';
 

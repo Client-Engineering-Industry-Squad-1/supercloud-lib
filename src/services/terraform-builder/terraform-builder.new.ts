@@ -23,6 +23,7 @@ import {
   Stage,
   TerraformComponentModel,
   TerraformProvider,
+  InputVariable
 } from '../../models';
 import {ModuleDependencyModuleNotFound, ModuleDependencyNotFound} from '../../errors';
 import {
@@ -82,7 +83,7 @@ const buildProviderId = (provider: {name: string, alias?: string}): string => {
 }
 
 export class TerraformBuilderNew implements TerraformBuilderApi {
-  async buildTerraformComponent(modules: SingleModuleVersion[], catalog: CatalogV2Model, billOfMaterial?: BillOfMaterialModel): Promise<TerraformComponentModel> {
+  async buildTerraformComponent(modules: SingleModuleVersion[], catalog: CatalogV2Model, inputVariables: InputVariable[], billOfMaterial?: BillOfMaterialModel): Promise<TerraformComponentModel> {
 
     const terraform: TerraformResult = modules.reduce(
       (result: TerraformResult, module: SingleModuleVersion) => {
@@ -123,7 +124,7 @@ export class TerraformBuilderNew implements TerraformBuilderApi {
       billOfMaterial,
       files: [],
       catalog
-    }, name);
+    }, name, inputVariables);
   }
 
   moduleVariablesToStageVariables(module: SingleModuleVersion): BaseVariable[] {

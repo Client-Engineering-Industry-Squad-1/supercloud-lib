@@ -46,7 +46,8 @@ import {
   UrlFile,
   LocalFile,
   AnsibleModulePlaybookFile,
-  AnsibleSolutionPlaybookFile
+  AnsibleSolutionPlaybookFile,
+  InputVariable
 } from '../../models'
 import { CatalogLoaderApi } from '../catalog-loader'
 import { ModuleSelectorApi } from '../module-selector'
@@ -102,23 +103,23 @@ export class CatalogBuilder implements IascableApi {
     this.docBuilder = Container.get(ModuleDocumentationApi);
   }
 
-  async build(catalogUrl: string, input?: BillOfMaterialModel, options?: IascableOptions): Promise<IascableBundle> {
+  async build(catalogUrl: string, inputVariables: InputVariable[], input?: BillOfMaterialModel, options?: IascableOptions): Promise<IascableBundle> {
     const catalog: Catalog = await this.loader.loadCatalog(catalogUrl);
 
     if (!input) {
       throw new Error('Bill of Material is required');
     }
 
-    return this.buildBom(catalog, input, options);
+    return this.buildBom(catalog, inputVariables, input, options);
   }
 
-  async buildBoms(catalogUrl: string | string[], boms: Array<BillOfMaterialModel | SolutionModel>, options?: IascableOptions): Promise<IascableBundle> {
+  async buildBoms(catalogUrl: string | string[], inputVariables: InputVariable[], boms: Array<BillOfMaterialModel | SolutionModel>, options?: IascableOptions): Promise<IascableBundle> {
     const catalog: Catalog = await this.loader.loadCatalog(catalogUrl);
 
-    return this.buildBomsFromCatalog(catalog, boms, options)
+    return this.buildBomsFromCatalog(catalog, inputVariables, boms, options)
   }
 
-  async buildBomsFromCatalog(catalog: Catalog, boms: Array<BillOfMaterialModel | SolutionModel>, options?: IascableOptions): Promise<IascableBundle> {
+  async buildBomsFromCatalog(catalog: Catalog, inputVariables: InputVariable[], boms: Array<BillOfMaterialModel | SolutionModel>, options?: IascableOptions): Promise<IascableBundle> {
 
     if (!boms || boms.length === 0) {
       throw new Error('Bill of Material is required');
@@ -132,8 +133,8 @@ export class CatalogBuilder implements IascableApi {
       const bom: BillOfMaterialModel | SolutionModel = boms[i];
 
       const bomResult: IascableBundle = isBillOfMaterialModel(bom)
-        ? await this.buildBom(catalog, bom, options)
-        : await this.buildSolution(catalog, bom, options)
+        ? await this.buildBom(catalog, inputVariables, bom, options)
+        : await this.buildSolution(catalog, inputVariables, bom, options)
 
       result.push(bomResult)
     }
@@ -141,7 +142,7 @@ export class CatalogBuilder implements IascableApi {
     return result.reduce(mergeIascableBundles);
   }
 
-  async buildSolution(catalog: Catalog, solutionModel: SolutionModel, options?: IascableOptions): Promise<IascableBundle> {
+  async buildSolution(catalog: Catalog, inputVariables: InputVariable[], solutionModel: SolutionModel, options?: IascableOptions): Promise<IascableBundle> {
 
     const logger: LoggerApi = Container.get(LoggerApi)
 
@@ -164,7 +165,7 @@ export class CatalogBuilder implements IascableApi {
 
     const inputBoms: Array<BillOfMaterialModel> = handleBomLookupResult(bomLookupResult)
 
-    const result: IascableBundle = await this.buildBomsFromCatalog(catalog, inputBoms, options)
+    const result: IascableBundle = await this.buildBomsFromCatalog(catalog, inputVariables, inputBoms, options)
     // if (hasUnmetClusterNeed(result)) {
     //   // if modules need a cluster
     //   const clusterBom: BillOfMaterialModel = (await catalog.lookupBOM({name: '105-existing-openshift'})) as BillOfMaterialModel
@@ -173,10 +174,10 @@ export class CatalogBuilder implements IascableApi {
     //   result.results.push(...clusterResult.results)
     // }
 
-    return bomBundleToSolutionBundle(solution, result)
+    return bomBundleToSolutionBundle(solution, result, inputVariables)
   }
 
-  async buildBom(catalog: Catalog, bom: BillOfMaterialModel, options?: IascableOptions): Promise<IascableBundle> {
+  async buildBom(catalog: Catalog, inputVariables: InputVariable[], bom: BillOfMaterialModel, options?: IascableOptions,): Promise<IascableBundle> {
 
     const name = bom?.metadata?.name || 'component';
     console.log('  Building bom:', name);
@@ -185,7 +186,7 @@ export class CatalogBuilder implements IascableApi {
 
     const billOfMaterial: BillOfMaterialModel = applyAnnotationsAndVersionsToBom(bom, modules);
 
-    const terraformComponent: TerraformComponentModel = await this.terraformBuilder.buildTerraformComponent(modules, catalog, billOfMaterial);
+    const terraformComponent: TerraformComponentModel = await this.terraformBuilder.buildTerraformComponent(modules, catalog, inputVariables, billOfMaterial);
 
     const tile: Tile | undefined = options?.tileConfig ? await this.tileBuilder.buildTileMetadata(terraformComponent.baseVariables, options.tileConfig) : undefined;
 
@@ -201,7 +202,8 @@ export class CatalogBuilder implements IascableApi {
         new UrlFile({name: 'destroy.sh', url: 'https://raw.githubusercontent.com/cloud-native-toolkit/automation-solutions/main/common-files/destroy-terragrunt.sh', type: OutputFileType.executable}),
         new BomReadmeFile(billOfMaterial, terraformComponent.modules, terraformComponent),
         new GitIgnoreFile()
-      ]
+      ],
+      inputVariables
     });
 
     return new IascableBundleImpl({
@@ -449,6 +451,7 @@ class IascableBomResultImpl implements IascableBomResult {
   graph?: DotGraphFile;
   tile?: Tile;
   inSolution?: boolean;
+  inputVariables: InputVariable[];
 
   constructor(params: IascableBomResultBase) {
     this.billOfMaterial = params.billOfMaterial
@@ -456,6 +459,7 @@ class IascableBomResultImpl implements IascableBomResult {
     this.supportingFiles = params.supportingFiles || []
     this.graph = params.graph
     this.tile = params.tile
+    this.inputVariables = params.inputVariables || []
   }
 
   writeBundle(baseWriter: BundleWriter, inOptions: { flatten?: boolean, basePath: string } = {flatten: false, basePath: '.'}): BundleWriter {
@@ -505,8 +509,8 @@ class IascableBomResultImpl implements IascableBomResult {
       } else {
         writeFiles(
           writer.folder('group_vars'), [
-            new TerraformTfvarsFile(terraformVariables, this.billOfMaterial.spec.variables, 'terraform.template.tfvars'),
-            new TerraformTfvarsFile(sensitiveVariables, this.billOfMaterial.spec.variables, 'credentials.auto.template.tfvars'),
+            new TerraformTfvarsFile(terraformVariables, this.inputVariables, this.billOfMaterial.spec.variables, 'terraform.template.tfvars'),
+            new TerraformTfvarsFile(sensitiveVariables, this.inputVariables, this.billOfMaterial.spec.variables, 'credentials.auto.template.tfvars'),
             new VariablesYamlFile({name: 'variables.template.yaml', variables: this.terraformComponent.billOfMaterial?.spec.variables || []})
           ],
           options
@@ -550,15 +554,17 @@ class IascableSolutionResultImpl implements IascableSolutionResult {
   results: IascableBomResult[];
   supportingFiles: OutputFile[];
   variableFiles: OutputFile[];
+  inputVariables: InputVariable[];
 
   _solution: Solution;
   _boms: BillOfMaterialModel[];
 
-  constructor(params: IascableSolutionResultBase) {
+  constructor(params: IascableSolutionResultBase, inputVariables: InputVariable[]) {
     this.results = params.results
     this.billOfMaterial = applyLayerVersions(params.billOfMaterial, this.results)
     this.supportingFiles = params.supportingFiles || []
     this.variableFiles = params.supportingFiles || []
+    this.inputVariables = inputVariables
 
     this._solution = Solution.fromModel(params.billOfMaterial)
 
@@ -617,8 +623,8 @@ class IascableSolutionResultImpl implements IascableSolutionResult {
       .filter(v => v.sensitive)
 
     this.variableFiles.push(...[
-      new TerraformTfvarsFile(terraformVariables, this.billOfMaterial.spec.variables, 'terraform.template.tfvars'),
-      new TerraformTfvarsFile(sensitiveVariables, this.billOfMaterial.spec.variables, 'credentials.auto.template.tfvars'),
+      new TerraformTfvarsFile(terraformVariables, this.inputVariables, this.billOfMaterial.spec.variables, 'terraform.template.tfvars'),
+      new TerraformTfvarsFile(sensitiveVariables, this.inputVariables, this.billOfMaterial.spec.variables, 'credentials.auto.template.tfvars'),
       new VariablesYamlFile({name: 'variables.template.yaml', variables: terraformVariables})
     ])
   }
@@ -760,14 +766,14 @@ const hasUnmetClusterNeed = (bundle: IascableBundle): boolean => {
     !provides.map(provide => provide.name).includes('cluster')
 }
 
-const bomBundleToSolutionBundle = (solution: Solution, bundle: IascableBundle): IascableBundle => {
+const bomBundleToSolutionBundle = (solution: Solution, bundle: IascableBundle, inputVariables: InputVariable[]): IascableBundle => {
   const results: IascableBomResult[] = bundle.results
     .filter(isIascableBomResult)
     .map(r => Object.assign(r, {inSolution: true}))
   const solutionResults: IascableSolutionResult[] = bundle.results
     .filter(isIascableSolutionResult)
 
-  solutionResults.push(new IascableSolutionResultImpl({billOfMaterial: solution, results}))
+  solutionResults.push(new IascableSolutionResultImpl({billOfMaterial: solution, results}, inputVariables))
 
   return new IascableBundleImpl({
     results: solutionResults,
