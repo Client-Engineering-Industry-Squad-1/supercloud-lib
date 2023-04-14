@@ -352,9 +352,10 @@ export class TerraformTfvars {
 
   // TODO: Convert to JSON
   asString(): string {
-    return `## ${this.name}: ${this.description}
+    return this.value ? `## ${this.name}: ${this.description}
 ${this.name}="${this.value}"
-
+` : `## ${this.name}: ${this.description}
+#${this.name}="${this.value}"
 `
   }
 }
