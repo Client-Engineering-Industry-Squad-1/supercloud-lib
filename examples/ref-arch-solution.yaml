@@ -1,0 +1,40 @@
+apiVersion: cloudnativetoolkit.dev/v2
+kind: Solution
+metadata:
+  name: ref-arch-solution
+spec:
+  stack:
+    - name: 101-azure-vnet-std
+      layer: infrastructure
+    - name: 150-azure-storage-blob
+      layer: infrastructure
+    - name: 270-self-hosted-integration-runtime
+      layer: infrastructure
+      version: v1.0.0
+    - name: 350-data-hub-connection
+      layer: infrastructure
+      version: v1.0.0
+    - name: 350-integration-services-connection
+      layer: infrastructure
+      version: v1.0.0
+    - name: 350-oracle-database-connection
+      layer: infrastructure
+      version: v1.0.0
+    - name: 350-pfna-data-lake-connection
+      layer: infrastructure
+      version: v1.0.0
+    - name: 350-teradata-connection
+      layer: infrastructure
+      version: v1.0.0
+    - name: 350-salesforce-connection
+      layer: infrastructure
+      version: v1.0.0
+    - name: 380-inbound-internet-connection
+      layer: infrastructure
+      version: v1.0.0
+    - name: 470-databricks-workspace
+      layer: infrastructure
+      version: v1.0.0
+    - name: 540-aks-container-deployment
+      layer: infrastructure
+      version: v1.0.0
